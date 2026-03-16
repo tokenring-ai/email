@@ -4,7 +4,7 @@ import EmailService from "../../../EmailService.ts";
 
 export default {
   name: "email draft send",
-  description: "/email draft send - Send current draft",
+  description: "Send current draft",
   help: `# /email draft send
 
 Send the currently selected email draft.

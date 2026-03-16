@@ -4,7 +4,7 @@ import EmailService from "../../../EmailService.ts";
 
 export default {
   name: "email draft clear",
-  description: "/email draft clear - Clear current draft selection",
+  description: "Clear current draft selection",
   help: `# /email draft clear
 
 Clear the current email draft selection.

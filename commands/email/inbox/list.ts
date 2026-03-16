@@ -34,4 +34,4 @@ List recent inbox messages from the active provider.
 /email inbox list
 /email inbox list 10`;
 
-export default {name: "email inbox list", description: "/email inbox list - List inbox messages", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email inbox list", description: "List inbox messages", help, execute} satisfies TokenRingAgentCommand;

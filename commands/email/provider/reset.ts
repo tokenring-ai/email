@@ -19,4 +19,4 @@ Reset the active email provider to the initial configured value.
 
 /email provider reset`;
 
-export default {name: "email provider reset", description: "/email provider reset - Reset to initial provider", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email provider reset", description: "Reset to initial provider", help, execute} satisfies TokenRingAgentCommand;

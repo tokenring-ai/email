@@ -1,6 +1,6 @@
 import Agent from "@tokenring-ai/agent/Agent";
-import type {TreeLeaf} from "@tokenring-ai/agent/question";
 import {CommandFailedError} from "@tokenring-ai/agent/AgentError";
+import type {TreeLeaf} from "@tokenring-ai/agent/question";
 import {TokenRingAgentCommand} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
@@ -49,4 +49,4 @@ Interactively select an inbox message to inspect.
 
 /email message select`;
 
-export default {name: "email message select", description: "/email message select - Select a message", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email message select", description: "Select a message", help, execute} satisfies TokenRingAgentCommand;

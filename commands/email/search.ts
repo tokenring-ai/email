@@ -33,4 +33,4 @@ Search messages from the active email provider.
 /email search invoice
 /email search "from:alex@example.com project"`;
 
-export default {name: "email search", description: "/email search - Search messages", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email search", description: "Search messages", help, execute} satisfies TokenRingAgentCommand;

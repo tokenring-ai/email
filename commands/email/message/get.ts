@@ -4,7 +4,7 @@ import EmailService from "../../../EmailService.ts";
 
 export default {
   name: "email message get",
-  description: "/email message get - Show current message",
+  description: "Show current message",
   help: `# /email message get
 
 Display the currently selected email message subject.

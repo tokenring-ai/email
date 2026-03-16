@@ -44,4 +44,4 @@ Interactively select the active email provider. Auto-selects if only one provide
 
 /email provider select`;
 
-export default {name: "email provider select", description: "/email provider select - Interactively select a provider", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email provider select", description: "Interactively select a provider", help, execute} satisfies TokenRingAgentCommand;

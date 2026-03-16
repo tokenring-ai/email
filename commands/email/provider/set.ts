@@ -23,4 +23,4 @@ Set the active email provider by name.
 
 /email provider set gmail`;
 
-export default {name: "email provider set", description: "/email provider set - Set the active provider", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email provider set", description: "Set the active provider", help, execute} satisfies TokenRingAgentCommand;

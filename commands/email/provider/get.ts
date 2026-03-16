@@ -4,7 +4,7 @@ import {EmailState} from "../../../state/EmailState.ts";
 
 export default {
   name: "email provider get",
-  description: "/email provider get - Show current provider",
+  description: "Show current provider",
   help: `# /email provider get
 
 Display the currently active email provider.

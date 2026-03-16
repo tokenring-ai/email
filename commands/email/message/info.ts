@@ -32,4 +32,4 @@ Display detailed information about the currently selected email message.
 
 /email message info`;
 
-export default {name: "email message info", description: "/email message info - Show info about current message", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email message info", description: "Show info about current message", help, execute} satisfies TokenRingAgentCommand;
