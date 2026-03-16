@@ -1,11 +1,19 @@
-import Agent from "@tokenring-ai/agent/Agent";
 import {CommandFailedError} from "@tokenring-ai/agent/AgentError";
-import {TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
 import markdownTable from "@tokenring-ai/utility/string/markdownTable";
 import EmailService from "../../../EmailService.ts";
 
-async function execute(remainder: string, agent: Agent): Promise<string> {
-  const trimmed = remainder.trim();
+const inputSchema = {
+  args: {},
+  prompt: {
+    description: "Optional limit for number of messages",
+    required: false,
+  },
+  allowAttachments: false,
+} as const satisfies AgentCommandInputSchema;
+
+async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const trimmed = prompt?.trim() ?? "";
   const limit = trimmed ? Number.parseInt(trimmed, 10) : 20;
   if (!Number.isFinite(limit) || limit <= 0) throw new CommandFailedError("Usage: /email inbox list [limit]");
 
@@ -34,4 +42,4 @@ List recent inbox messages from the active provider.
 /email inbox list
 /email inbox list 10`;
 
-export default {name: "email inbox list", description: "List inbox messages", help, execute} satisfies TokenRingAgentCommand;
+export default {name: "email inbox list", description: "List inbox messages", inputSchema, help, execute} satisfies TokenRingAgentCommand<typeof inputSchema>;
