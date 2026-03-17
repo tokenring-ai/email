@@ -3,10 +3,7 @@ import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} f
 import EmailService from "../../../EmailService.ts";
 import {EmailState} from "../../../state/EmailState.ts";
 
-const inputSchema = {
-  args: {},
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
@@ -40,9 +37,7 @@ async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Prom
   return "Provider selection cancelled.";
 }
 
-const help = `# /email provider select
-
-Interactively select the active email provider. Auto-selects if only one provider is configured.
+const help = `Interactively select the active email provider. Auto-selects if only one provider is configured.
 
 ## Example
 

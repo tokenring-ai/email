@@ -1,10 +1,7 @@
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
-const inputSchema = {
-  args: {},
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const sent = await agent.requireServiceByType(EmailService).sendCurrentDraft(agent);
@@ -16,9 +13,7 @@ export default {
   description: "Send current draft",
   inputSchema,
   execute,
-  help: `# /email draft send
-
-Send the currently selected email draft.
+  help: `Send the currently selected email draft.
 
 ## Example
 

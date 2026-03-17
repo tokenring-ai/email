@@ -4,16 +4,17 @@ import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
   args: {},
-  prompt: {
+  positionals: [{
+    name: "name",
     description: "The provider name to set",
     required: true,
-  },
+  }],
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
-  const providerName = prompt.trim();
+  const providerName = positionals.name.trim();
   if (!providerName) throw new CommandFailedError("Usage: /email provider set <name>");
   const available = emailService.getAvailableProviders();
   if (available.includes(providerName)) {
@@ -23,9 +24,7 @@ async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema
   return `Provider "${providerName}" not found. Available providers: ${available.join(", ")}`;
 }
 
-const help = `# /email provider set <name>
-
-Set the active email provider by name.
+const help = `Set the active email provider by name.
 
 ## Example
 

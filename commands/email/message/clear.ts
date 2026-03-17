@@ -1,10 +1,7 @@
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
-const inputSchema = {
-  args: {},
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   await agent.requireServiceByType(EmailService).clearCurrentMessage(agent);
@@ -16,9 +13,7 @@ export default {
   description: "Clear current message selection",
   inputSchema,
   execute,
-  help: `# /email message clear
-
-Clear the current email message selection.
+  help: `Clear the current email message selection.
 
 ## Example
 

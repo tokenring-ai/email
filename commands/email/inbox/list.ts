@@ -4,17 +4,18 @@ import markdownTable from "@tokenring-ai/utility/string/markdownTable";
 import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
-  args: {},
-  prompt: {
-    description: "Optional limit for number of messages",
-    required: false,
+  args: {
+    "--limit": {
+      type: "number",
+      required: false,
+      description: "Optional limit for number of messages",
+    }
   },
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const trimmed = prompt?.trim() ?? "";
-  const limit = trimmed ? Number.parseInt(trimmed, 10) : 20;
+async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const limit = args["--limit"] ?? 20
   if (!Number.isFinite(limit) || limit <= 0) throw new CommandFailedError("Usage: /email inbox list [limit]");
 
   const messages = await agent.requireServiceByType(EmailService).getInboxMessages({limit}, agent);
@@ -33,13 +34,11 @@ ${markdownTable(
   `.trim();
 }
 
-const help = `# /email inbox list [limit]
-
-List recent inbox messages from the active provider.
+const help = `List recent inbox messages from the active provider.
 
 ## Example
 
 /email inbox list
-/email inbox list 10`;
+/email inbox list --limit 10`;
 
 export default {name: "email inbox list", description: "List inbox messages", inputSchema, help, execute} satisfies TokenRingAgentCommand<typeof inputSchema>;

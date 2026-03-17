@@ -3,10 +3,7 @@ import type {TreeLeaf} from "@tokenring-ai/agent/question";
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
-const inputSchema = {
-  args: {},
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
@@ -45,9 +42,7 @@ async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Prom
   }
 }
 
-const help = `# /email message select
-
-Interactively select an inbox message to inspect.
+const help = `Interactively select an inbox message to inspect.
 
 ## Example
 

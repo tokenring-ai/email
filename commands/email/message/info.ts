@@ -2,10 +2,7 @@ import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} f
 import EmailService from "../../../EmailService.ts";
 import {EmailState} from "../../../state/EmailState.ts";
 
-const inputSchema = {
-  args: {},
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
@@ -28,9 +25,7 @@ async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Prom
   return lines.join("\n");
 }
 
-const help = `# /email message info
-
-Display detailed information about the currently selected email message.
+const help = `Display detailed information about the currently selected email message.
 
 ## Example
 

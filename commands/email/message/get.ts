@@ -1,10 +1,7 @@
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
-const inputSchema = {
-  args: {},
-  allowAttachments: false,
-} as const satisfies AgentCommandInputSchema;
+const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const message = agent.requireServiceByType(EmailService).getCurrentMessage(agent);
@@ -16,9 +13,7 @@ export default {
   description: "Show current message",
   inputSchema,
   execute,
-  help: `# /email message get
-
-Display the currently selected email message subject.
+  help: `Display the currently selected email message subject.
 
 ## Example
 

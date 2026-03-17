@@ -5,15 +5,17 @@ import EmailService from "../../EmailService.ts";
 
 const inputSchema = {
   args: {},
-  prompt: {
+  positionals: [{
+    name: "query",
     description: "Search query",
     required: true,
-  },
+    greedy: true,
+  }],
   allowAttachments: false,
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({prompt, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const query = prompt.trim();
+async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const query = positionals.query.trim();
   if (!query) throw new CommandFailedError("Usage: /email search <query>");
 
   const messages = await agent.requireServiceByType(EmailService).searchMessages({query}, agent);
@@ -32,9 +34,7 @@ ${markdownTable(
   `.trim();
 }
 
-const help = `# /email search <query>
-
-Search messages from the active email provider.
+const help = `Search messages from the active email provider.
 
 ## Example
 
