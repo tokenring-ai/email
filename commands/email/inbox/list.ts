@@ -10,8 +10,7 @@ const inputSchema = {
       required: false,
       description: "Optional limit for number of messages",
     }
-  },
-  allowAttachments: false,
+  }
 } as const satisfies AgentCommandInputSchema;
 
 async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {

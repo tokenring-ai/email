@@ -5,17 +5,11 @@ import EmailService from "../../EmailService.ts";
 
 const inputSchema = {
   args: {},
-  positionals: [{
-    name: "query",
-    description: "Search query",
-    required: true,
-    greedy: true,
-  }],
-  allowAttachments: false,
+  remainder: {name: "query", description: "Search query", required: true}
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const query = positionals.query.trim();
+async function execute({remainder, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const query = remainder.trim();
   if (!query) throw new CommandFailedError("Usage: /email search <query>");
 
   const messages = await agent.requireServiceByType(EmailService).searchMessages({query}, agent);
