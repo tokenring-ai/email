@@ -8,6 +8,5 @@ export type {
   EmailMessage,
   EmailSearchOptions,
   EmailProvider,
-  SentEmail,
   UpdateDraftEmailData,
 } from "./EmailProvider.ts";
