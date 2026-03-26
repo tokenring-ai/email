@@ -30,11 +30,11 @@ export default class EmailService implements TokenRingService {
 
   attach(agent: Agent, creationContext: AgentCreationContext): void {
     const agentConfig = deepMerge(this.options.agentDefaults, agent.getAgentConfigSlice("email", EmailAgentConfigSchema));
-    agent.initializeState(EmailState, agentConfig);
+    const initialState = agent.initializeState(EmailState, agentConfig);
     for (const provider of this.providers.getAllItemValues()) {
       provider.attach?.(agent, creationContext);
     }
-    creationContext.items.push(`Selected email provider: ${agentConfig.provider ?? "(none)"}`);
+    creationContext.items.push(`Selected email provider: ${initialState.activeProvider ?? "(none)"}`);
 
     if (agentConfig.watch) {
       this.watchEmails(agent);
