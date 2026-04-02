@@ -3,6 +3,7 @@ import type {AgentCreationContext} from "@tokenring-ai/agent/types";
 import {TokenRingService} from "@tokenring-ai/app/types";
 import deepMerge from "@tokenring-ai/utility/object/deepMerge";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
+import {setTimeout as delay} from "node:timers/promises";
 import {z} from "zod";
 import type {
   DraftEmailData,
@@ -13,9 +14,8 @@ import type {
   EmailSearchOptions,
   UpdateDraftEmailData,
 } from "./EmailProvider.ts";
-import {EmailConfigSchema, EmailAgentConfigSchema, EmailWatchSchema} from "./schema.ts";
+import {EmailAgentConfigSchema, EmailConfigSchema, EmailWatchSchema} from "./schema.ts";
 import {EmailState} from "./state/EmailState.ts";
-import {setTimeout as delay} from "node:timers/promises";
 
 export default class EmailService implements TokenRingService {
   readonly name = "EmailService";
@@ -25,16 +25,14 @@ export default class EmailService implements TokenRingService {
 
   registerEmailProvider = this.providers.register;
   getAvailableProviders = this.providers.getAllItemNames;
+  requireEmailProvider = this.providers.requireItemByName;
 
   constructor(readonly options: z.output<typeof EmailConfigSchema>) {}
 
   attach(agent: Agent, creationContext: AgentCreationContext): void {
     const agentConfig = deepMerge(this.options.agentDefaults, agent.getAgentConfigSlice("email", EmailAgentConfigSchema));
     const initialState = agent.initializeState(EmailState, agentConfig);
-    for (const provider of this.providers.getAllItemValues()) {
-      provider.attach?.(agent, creationContext);
-    }
-    creationContext.items.push(`Selected email provider: ${initialState.activeProvider ?? "(none)"}`);
+    creationContext.items.push(`Email provider: ${initialState.activeProvider ?? "(none)"}`);
 
     if (agentConfig.watch) {
       this.watchEmails(agent);
@@ -69,7 +67,7 @@ export default class EmailService implements TokenRingService {
 
   async checkForNewEmails({ unreadOnly, maxEmailsToConsider, actions }: z.output<typeof EmailWatchSchema>, agent: Agent): Promise<void> {
     const provider = this.requireActiveEmailProvider(agent);
-    const messages = await provider.getInboxMessages({ limit: maxEmailsToConsider, unreadOnly }, agent);
+    const messages = await provider.getInboxMessages({limit: maxEmailsToConsider, unreadOnly});
     const messagesToProcess = agent.mutateState(EmailState, state => {
       const messagesToProcess: EmailMessage[] = [];
       for (const message of messages) {
@@ -133,15 +131,15 @@ ${message.textBody ?? message.htmlBody}
   }
 
   async getInboxMessages(filter: EmailInboxFilterOptions, agent: Agent): Promise<EmailMessage[]> {
-    return this.requireActiveEmailProvider(agent).getInboxMessages(filter, agent);
+    return this.requireActiveEmailProvider(agent).getInboxMessages(filter);
   }
 
   async searchMessages(filter: EmailSearchOptions, agent: Agent): Promise<EmailMessage[]> {
-    return this.requireActiveEmailProvider(agent).searchMessages(filter, agent);
+    return this.requireActiveEmailProvider(agent).searchMessages(filter);
   }
 
   async getMessageById(id: string, agent: Agent): Promise<EmailMessage> {
-    return this.requireActiveEmailProvider(agent).getMessageById(id, agent);
+    return this.requireActiveEmailProvider(agent).getMessageById(id);
   }
 
   async selectMessageById(id: string, agent: Agent): Promise<EmailMessage> {
@@ -163,7 +161,7 @@ ${message.textBody ?? message.htmlBody}
   }
 
   async createDraft(data: DraftEmailData, agent: Agent): Promise<EmailDraft> {
-    const draft = await this.requireActiveEmailProvider(agent).createDraft(data, agent);
+    const draft = await this.requireActiveEmailProvider(agent).createDraft(data);
     agent.mutateState(EmailState, state => {
       state.currentDraft = draft;
     })
@@ -178,7 +176,7 @@ ${message.textBody ?? message.htmlBody}
       ...currentDraft,
       ...data,
     };
-    return this.requireActiveEmailProvider(agent).updateDraft(newDraft, agent);
+    return this.requireActiveEmailProvider(agent).updateDraft(newDraft);
   }
 
   getCurrentDraft(agent: Agent): EmailDraft | undefined {
@@ -195,7 +193,7 @@ ${message.textBody ?? message.htmlBody}
     const currentDraft = this.getCurrentDraft(agent);
     if (!currentDraft) throw new Error("No draft is currently selected");
 
-    await this.requireActiveEmailProvider(agent).sendDraft(currentDraft.id, agent);
+    await this.requireActiveEmailProvider(agent).sendDraft(currentDraft.id);
     return currentDraft;
   }
 }

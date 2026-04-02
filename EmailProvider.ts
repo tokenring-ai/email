@@ -4,7 +4,7 @@ import type { AgentCreationContext } from "@tokenring-ai/agent/types";
 
 // Zod schemas
 export const EmailAddressSchema = z.object({
-  email: z.string().email(),
+  email: z.string(),
   name: z.string().optional()
 });
 
@@ -63,17 +63,15 @@ export type UpdateDraftEmailData = Partial<Omit<EmailDraft, "id" | "createdAt" |
 export interface EmailProvider {
   description: string;
 
-  attach?(agent: Agent, creationContext: AgentCreationContext): void;
+  getInboxMessages(filter: EmailInboxFilterOptions): Promise<EmailMessage[]>;
 
-  getInboxMessages(filter: EmailInboxFilterOptions, agent: Agent): Promise<EmailMessage[]>;
+  searchMessages(filter: EmailSearchOptions): Promise<EmailMessage[]>;
 
-  searchMessages(filter: EmailSearchOptions, agent: Agent): Promise<EmailMessage[]>;
+  getMessageById(id: string): Promise<EmailMessage>;
 
-  getMessageById(id: string, agent: Agent): Promise<EmailMessage>;
+  createDraft(data: DraftEmailData): Promise<EmailDraft>;
 
-  createDraft(data: DraftEmailData, agent: Agent): Promise<EmailDraft>;
+  updateDraft(data: UpdateDraftEmailData): Promise<EmailDraft>;
 
-  updateDraft(data: UpdateDraftEmailData, agent: Agent): Promise<EmailDraft>;
-
-  sendDraft(id: string, agent: Agent): Promise<void>;
+  sendDraft(id: string): Promise<void>;
 }

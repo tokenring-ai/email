@@ -17,7 +17,6 @@ export const EmailAgentConfigSchema = z.object({
 }).default({});
 
 export const EmailConfigSchema = z.object({
-  providers: z.record(z.string(), z.any()).default({}),
   pollInterval: z.number().default(60).transform(seconds => seconds * 1000),
   agentDefaults: EmailAgentConfigSchema.prefault({}),
 });
