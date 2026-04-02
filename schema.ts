@@ -1,5 +1,4 @@
 import {z} from "zod";
-import type {EmailAddress} from "./EmailProvider.ts";
 
 export const EmailWatchSchema = z.object({
   markAsRead: z.boolean().default(false),

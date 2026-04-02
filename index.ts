@@ -3,9 +3,11 @@ export {default as EmailService} from "./EmailService.ts";
 export type {
   DraftEmailData,
   EmailAddress,
+  EmailBox,
   EmailDraft,
-  EmailInboxFilterOptions,
   EmailMessage,
+  EmailMessagePage,
+  EmailMessageQueryOptions,
   EmailSearchOptions,
   EmailProvider,
   UpdateDraftEmailData,

@@ -25,26 +25,40 @@ export default {
     app.services.register(service);
 
     app.services.waitForItemByType(ScriptingService, (scriptingService: ScriptingService) => {
-      scriptingService.registerFunction("getInboxMessages", {
+      scriptingService.registerFunction("getEmailBoxes", {
         type: "native",
-        params: ["limit"],
-        async execute(this: ScriptingThis, limit?: string): Promise<string> {
+        params: [],
+        async execute(this: ScriptingThis): Promise<string> {
+          const boxes = await this.agent.requireServiceByType(EmailService).getBoxes(this.agent);
+          return JSON.stringify(boxes);
+        },
+      });
+
+      scriptingService.registerFunction("getMessages", {
+        type: "native",
+        params: ["box", "limit", "pageToken", "unreadOnly"],
+        async execute(this: ScriptingThis, box?: string, limit?: string, pageToken?: string, unreadOnly?: string): Promise<string> {
           const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
-          const messages = await this.agent.requireServiceByType(EmailService).getInboxMessages({
+          const page = await this.agent.requireServiceByType(EmailService).getMessages({
+            box: box?.trim() || undefined,
             limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+            pageToken: pageToken?.trim() || undefined,
+            unreadOnly: unreadOnly === undefined ? undefined : unreadOnly.toLowerCase() === "true",
           }, this.agent);
-          return JSON.stringify(messages);
+          return JSON.stringify(page);
         },
       });
 
       scriptingService.registerFunction("searchEmailMessages", {
         type: "native",
-        params: ["query", "limit"],
-        async execute(this: ScriptingThis, query: string, limit?: string): Promise<string> {
+        params: ["query", "box", "limit", "unreadOnly"],
+        async execute(this: ScriptingThis, query: string, box?: string, limit?: string, unreadOnly?: string): Promise<string> {
           const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
           const messages = await this.agent.requireServiceByType(EmailService).searchMessages({
             query,
+            box: box?.trim() || undefined,
             limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+            unreadOnly: unreadOnly === undefined ? undefined : unreadOnly.toLowerCase() === "true",
           }, this.agent);
           return JSON.stringify(messages);
         },

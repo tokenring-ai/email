@@ -3,13 +3,22 @@ import type {TreeLeaf} from "@tokenring-ai/agent/question";
 import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
-const inputSchema = {} as const satisfies AgentCommandInputSchema;
+const inputSchema = {
+  args: {
+    "--box": {
+      type: "string",
+      required: false,
+      description: "Email box to browse while selecting a message",
+    },
+  },
+} as const satisfies AgentCommandInputSchema;
 
-async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
 
   try {
-    const messages = await emailService.getInboxMessages({limit: 25}, agent);
+    const box = args["--box"]?.trim() || "inbox";
+    const {messages} = await emailService.getMessages({box, limit: 25}, agent);
     if (!messages?.length) return "No messages found.";
 
     const tree: TreeLeaf[] = messages.map(message => ({
@@ -46,6 +55,7 @@ const help = `Interactively select an inbox message to inspect.
 
 ## Example
 
-/email message select`;
+/email message select
+/email message select --box sent`;
 
 export default {name: "email message select", description: "Select a message", inputSchema, help, execute} satisfies TokenRingAgentCommand<typeof inputSchema>;

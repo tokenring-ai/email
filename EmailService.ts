@@ -8,8 +8,10 @@ import {z} from "zod";
 import type {
   DraftEmailData,
   EmailDraft,
-  EmailInboxFilterOptions,
+  EmailBox,
   EmailMessage,
+  EmailMessagePage,
+  EmailMessageQueryOptions,
   EmailProvider,
   EmailSearchOptions,
   UpdateDraftEmailData,
@@ -67,7 +69,7 @@ export default class EmailService implements TokenRingService {
 
   async checkForNewEmails({ unreadOnly, maxEmailsToConsider, actions }: z.output<typeof EmailWatchSchema>, agent: Agent): Promise<void> {
     const provider = this.requireActiveEmailProvider(agent);
-    const messages = await provider.getInboxMessages({limit: maxEmailsToConsider, unreadOnly});
+    const {messages} = await provider.getMessages({box: "inbox", limit: maxEmailsToConsider, unreadOnly});
     const messagesToProcess = agent.mutateState(EmailState, state => {
       const messagesToProcess: EmailMessage[] = [];
       for (const message of messages) {
@@ -130,12 +132,22 @@ ${message.textBody ?? message.htmlBody}
     });
   }
 
-  async getInboxMessages(filter: EmailInboxFilterOptions, agent: Agent): Promise<EmailMessage[]> {
-    return this.requireActiveEmailProvider(agent).getInboxMessages(filter);
+  async getBoxes(agent: Agent): Promise<EmailBox[]> {
+    return this.requireActiveEmailProvider(agent).listBoxes();
+  }
+
+  async getMessages(filter: EmailMessageQueryOptions, agent: Agent): Promise<EmailMessagePage> {
+    return this.requireActiveEmailProvider(agent).getMessages({
+      ...filter,
+      box: filter.box ?? "inbox",
+    });
   }
 
   async searchMessages(filter: EmailSearchOptions, agent: Agent): Promise<EmailMessage[]> {
-    return this.requireActiveEmailProvider(agent).searchMessages(filter);
+    return this.requireActiveEmailProvider(agent).searchMessages({
+      ...filter,
+      box: filter.box ?? "inbox",
+    });
   }
 
   async getMessageById(id: string, agent: Agent): Promise<EmailMessage> {

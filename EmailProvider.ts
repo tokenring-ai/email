@@ -1,6 +1,4 @@
-import { z } from 'zod';
-import { Agent } from "@tokenring-ai/agent";
-import type { AgentCreationContext } from "@tokenring-ai/agent/types";
+import {z} from "zod";
 
 // Zod schemas
 export const EmailAddressSchema = z.object({
@@ -38,22 +36,37 @@ export const EmailDraftSchema = z.object({
   updatedAt: z.date()
 });
 
-export const EmailInboxFilterOptionsSchema = z.object({
+export const EmailBoxSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export const EmailMessageQueryOptionsSchema = z.object({
+  box: z.string().optional(),
   limit: z.number().optional(),
-  unreadOnly: z.boolean().optional()
+  unreadOnly: z.boolean().optional(),
+  pageToken: z.string().optional(),
+});
+
+export const EmailMessagePageSchema = z.object({
+  messages: z.array(EmailMessageSchema),
+  nextPageToken: z.string().optional(),
 });
 
 export const EmailSearchOptionsSchema = z.object({
   query: z.string(),
+  box: z.string().optional(),
   limit: z.number().optional(),
-  unreadOnly: z.boolean().optional()
+  unreadOnly: z.boolean().optional(),
 });
 
 // Type inference from schemas
 export type EmailAddress = z.infer<typeof EmailAddressSchema>;
+export type EmailBox = z.infer<typeof EmailBoxSchema>;
 export type EmailMessage = z.infer<typeof EmailMessageSchema>;
+export type EmailMessagePage = z.infer<typeof EmailMessagePageSchema>;
 export type EmailDraft = z.infer<typeof EmailDraftSchema>;
-export type EmailInboxFilterOptions = z.infer<typeof EmailInboxFilterOptionsSchema>;
+export type EmailMessageQueryOptions = z.infer<typeof EmailMessageQueryOptionsSchema>;
 export type EmailSearchOptions = z.infer<typeof EmailSearchOptionsSchema>;
 
 // Derived types
@@ -63,7 +76,9 @@ export type UpdateDraftEmailData = Partial<Omit<EmailDraft, "id" | "createdAt" |
 export interface EmailProvider {
   description: string;
 
-  getInboxMessages(filter: EmailInboxFilterOptions): Promise<EmailMessage[]>;
+  listBoxes(): Promise<EmailBox[]>;
+
+  getMessages(filter: EmailMessageQueryOptions): Promise<EmailMessagePage>;
 
   searchMessages(filter: EmailSearchOptions): Promise<EmailMessage[]>;
 

@@ -14,19 +14,30 @@ export default createRPCEndpoint(EmailRpcSchema, {
     };
   },
 
-  async getInboxMessages(args, app: TokenRingApp) {
+  async getEmailBoxes(args, app: TokenRingApp) {
     const emailService = app.requireService(EmailService);
     const provider = emailService.requireEmailProvider(args.provider);
-    const messages = await provider.getInboxMessages(
-      {
-        limit: args.limit,
-        unreadOnly: args.unreadOnly,
-      });
 
     return {
-      messages,
-      count: messages.length,
-      message: `Found ${messages.length} inbox messages`,
+      boxes: await provider.listBoxes(),
+    };
+  },
+
+  async getMessages(args, app: TokenRingApp) {
+    const emailService = app.requireService(EmailService);
+    const provider = emailService.requireEmailProvider(args.provider);
+    const page = await provider.getMessages({
+      box: args.box ?? "inbox",
+      limit: args.limit,
+      unreadOnly: args.unreadOnly,
+      pageToken: args.pageToken,
+    });
+
+    return {
+      messages: page.messages,
+      count: page.messages.length,
+      nextPageToken: page.nextPageToken,
+      message: `Found ${page.messages.length} messages in ${args.box ?? "inbox"}`,
     };
   },
 
@@ -35,6 +46,7 @@ export default createRPCEndpoint(EmailRpcSchema, {
     const provider = emailService.requireEmailProvider(args.provider);
     const messages = await provider.searchMessages({
       query: args.query,
+      box: args.box ?? "inbox",
       limit: args.limit,
       unreadOnly: args.unreadOnly,
     });

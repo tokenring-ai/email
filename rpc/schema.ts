@@ -1,6 +1,6 @@
 import {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
-import {EmailAddressSchema, EmailDraftSchema, EmailMessageSchema} from "../EmailProvider.ts";
+import {EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema} from "../EmailProvider.ts";
 
 export default {
   name: "Email RPC",
@@ -13,16 +13,28 @@ export default {
         providers: z.array(z.string()),
       }),
     },
-    getInboxMessages: {
+    getEmailBoxes: {
       type: "query",
       input: z.object({
         provider: z.string(),
+      }),
+      result: z.object({
+        boxes: z.array(EmailBoxSchema),
+      }),
+    },
+    getMessages: {
+      type: "query",
+      input: z.object({
+        provider: z.string(),
+        box: z.string().optional(),
         limit: z.number().int().positive().optional(),
         unreadOnly: z.boolean().optional(),
+        pageToken: z.string().optional(),
       }),
       result: z.object({
         messages: z.array(EmailMessageSchema),
         count: z.number(),
+        nextPageToken: z.string().optional(),
         message: z.string(),
       }),
     },
@@ -31,6 +43,7 @@ export default {
       input: z.object({
         provider: z.string(),
         query: z.string(),
+        box: z.string().optional(),
         limit: z.number().int().positive().optional(),
         unreadOnly: z.boolean().optional(),
       }),
