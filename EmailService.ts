@@ -7,8 +7,8 @@ import {setTimeout as delay} from "node:timers/promises";
 import {z} from "zod";
 import type {
   DraftEmailData,
-  EmailDraft,
   EmailBox,
+  EmailDraft,
   EmailMessage,
   EmailMessagePage,
   EmailMessageQueryOptions,

@@ -5,11 +5,11 @@ import {RpcService} from "@tokenring-ai/rpc";
 import {ScriptingService} from "@tokenring-ai/scripting";
 import {ScriptingThis} from "@tokenring-ai/scripting/ScriptingService";
 import {z} from "zod";
-import EmailService from "./EmailService.ts";
 import commands from "./commands.ts";
+import EmailService from "./EmailService.ts";
 import {EmailConfigSchema} from "./index.ts";
-import emailRPC from "./rpc/email.ts";
 import packageJSON from "./package.json" with {type: "json"};
+import emailRPC from "./rpc/email.ts";
 import tools from "./tools.ts";
 
 const packageConfigSchema = z.object({
