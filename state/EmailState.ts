@@ -1,16 +1,19 @@
-import {Agent} from "@tokenring-ai/agent";
+import type {Agent} from "@tokenring-ai/agent";
 import {AgentStateSlice} from "@tokenring-ai/agent/types";
+import markdownList from "@tokenring-ai/utility/string/markdownList";
 import {z} from "zod";
-import {type EmailDraft, EmailDraftSchema, type EmailMessage, EmailMessageSchema} from "../EmailProvider.ts";
-import {EmailAgentConfigSchema, EmailWatchSchema} from "../schema.ts";
+import {type EmailDraft, EmailDraftSchema, type EmailMessage, EmailMessageSchema,} from "../EmailProvider.ts";
+import {type EmailAgentConfigSchema, EmailWatchSchema} from "../schema.ts";
 
-const serializationSchema = z.object({
-  activeProvider: z.string().optional(),
-  watch: EmailWatchSchema.optional(),
-  processedEmails: z.array(z.string()).optional(),
-  currentEmail: EmailMessageSchema.optional(),
-  currentDraft: EmailDraftSchema.optional(),
-}).prefault({});
+const serializationSchema = z
+  .object({
+    activeProvider: z.string().optional(),
+    watch: EmailWatchSchema.optional(),
+    processedEmails: z.array(z.string()).optional(),
+    currentEmail: EmailMessageSchema.optional(),
+    currentDraft: EmailDraftSchema.optional(),
+  })
+  .prefault({});
 
 export class EmailState extends AgentStateSlice<typeof serializationSchema> {
   activeProvider: string | undefined;
@@ -39,7 +42,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
       watch: this.watch,
       processedEmails: Array.from(this.processedEmails),
       currentEmail: this.currentEmail,
-      currentDraft: this.currentDraft
+      currentDraft: this.currentDraft,
     };
   }
 
@@ -51,13 +54,14 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
     this.currentDraft = data.currentDraft;
   }
 
-  show(): string[] {
-    return [
-      `Active Email Provider: ${this.activeProvider}`,
-      `Watches:`,
-      ...(Object.keys(this.watch?.actions ?? {}).length > 0
-        ? Object.entries(this.watch!.actions).map(([key, value]) => `- ${key}: Pattern: ${value.pattern}, Command: ${value.command}`)
-        : ["- No watches configured"]),
-    ];
+  show(): string {
+    const watchLines = (this.watch?.actions.length ?? 0) > 0
+      ? this.watch!.actions.map(
+        val => `Pattern: ${val.pattern}, Command: ${val.command}`,
+      )
+      : ["No watches configured"];
+    return `Active Email Provider: ${this.activeProvider}
+Watches:
+${markdownList(watchLines)}`;
   }
 }

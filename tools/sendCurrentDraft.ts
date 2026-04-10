@@ -1,5 +1,5 @@
-import Agent from "@tokenring-ai/agent/Agent";
-import {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
+import type Agent from "@tokenring-ai/agent/Agent";
+import type {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
 import EmailService from "../EmailService.ts";
 
@@ -10,7 +10,9 @@ const description = "Send the currently selected email draft";
 const inputSchema = z.object({});
 
 async function execute(_input: z.output<typeof inputSchema>, agent: Agent) {
-  const sent = await agent.requireServiceByType(EmailService).sendCurrentDraft(agent);
+  const sent = await agent
+    .requireServiceByType(EmailService)
+    .sendCurrentDraft(agent);
   agent.infoMessage(`[${name}] Email sent: ${sent.id}`);
   return {type: "json" as const, data: sent};
 }

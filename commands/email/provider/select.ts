@@ -1,11 +1,13 @@
 import type {TreeLeaf} from "@tokenring-ai/agent/question";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 import {EmailState} from "../../../state/EmailState.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({
+                         agent,
+                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
   const available = emailService.getAvailableProviders();
   if (available.length === 0) return "No email providers are registered.";
@@ -15,7 +17,10 @@ async function execute({agent}: AgentCommandInputType<typeof inputSchema>): Prom
   }
 
   const activeProvider = agent.getState(EmailState).activeProvider;
-  const tree: TreeLeaf[] = available.map((name: string) => ({name: `${name}${name === activeProvider ? " (current)" : ""}`, value: name}));
+  const tree: TreeLeaf[] = available.map((name: string) => ({
+    name: `${name}${name === activeProvider ? " (current)" : ""}`,
+    value: name,
+  }));
   const selection = await agent.askQuestion({
     message: "Select an active email provider",
     question: {
@@ -43,4 +48,10 @@ const help = `Interactively select the active email provider. Auto-selects if on
 
 /email provider select`;
 
-export default {name: "email provider select", description: "Interactively select a provider", inputSchema, help, execute} satisfies TokenRingAgentCommand<typeof inputSchema>;
+export default {
+  name: "email provider select",
+  description: "Interactively select a provider",
+  inputSchema,
+  help,
+  execute,
+} satisfies TokenRingAgentCommand<typeof inputSchema>;

@@ -1,6 +1,6 @@
-import {RPCSchema} from "@tokenring-ai/rpc/types";
+import type {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
-import {EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema} from "../EmailProvider.ts";
+import {EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema,} from "../EmailProvider.ts";
 
 export default {
   name: "Email RPC",
@@ -84,7 +84,11 @@ export default {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        updatedData: EmailDraftSchema.omit({id: true, createdAt: true, updatedAt: true}).partial(),
+        updatedData: EmailDraftSchema.omit({
+          id: true,
+          createdAt: true,
+          updatedAt: true,
+        }).partial(),
       }),
       result: z.object({
         draft: EmailDraftSchema,

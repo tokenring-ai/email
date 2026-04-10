@@ -1,20 +1,26 @@
 import {CommandFailedError} from "@tokenring-ai/agent/AgentError";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
   args: {},
-  positionals: [{
-    name: "name",
-    description: "The provider name to set",
-    required: true,
-  }]
+  positionals: [
+    {
+      name: "name",
+      description: "The provider name to set",
+      required: true,
+    },
+  ],
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({positionals, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute({
+                   positionals,
+                   agent,
+                 }: AgentCommandInputType<typeof inputSchema>): string {
   const emailService = agent.requireServiceByType(EmailService);
   const providerName = positionals.name.trim();
-  if (!providerName) throw new CommandFailedError("Usage: /email provider set <name>");
+  if (!providerName)
+    throw new CommandFailedError("Usage: /email provider set <name>");
   const available = emailService.getAvailableProviders();
   if (available.includes(providerName)) {
     emailService.setActiveProvider(providerName, agent);
@@ -29,4 +35,10 @@ const help = `Set the active email provider by name.
 
 /email provider set gmail`;
 
-export default {name: "email provider set", description: "Set the active provider", inputSchema, help, execute} satisfies TokenRingAgentCommand<typeof inputSchema>;
+export default {
+  name: "email provider set",
+  description: "Set the active provider",
+  inputSchema,
+  help,
+  execute,
+} satisfies TokenRingAgentCommand<typeof inputSchema>;

@@ -1,5 +1,5 @@
 import {CommandFailedError} from "@tokenring-ai/agent/AgentError";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "@tokenring-ai/agent/types";
 import markdownTable from "@tokenring-ai/utility/string/markdownTable";
 import EmailService from "../../../EmailService.ts";
 
@@ -20,30 +20,39 @@ const inputSchema = {
       required: false,
       description: "Pagination token returned by a previous list call",
     },
-  }
+  },
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({
+                         args,
+                         agent,
+                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const box = args["--box"]?.trim() || "inbox";
   const limit = args["--limit"] ?? 20;
-  if (!Number.isFinite(limit) || limit <= 0) throw new CommandFailedError("Usage: /email messages list --box <box> --limit <limit>");
+  if (!Number.isFinite(limit) || limit <= 0)
+    throw new CommandFailedError(
+      "Usage: /email messages list --box <box> --limit <limit>",
+    );
 
-  const page = await agent.requireServiceByType(EmailService).getMessages({
-    box,
-    limit,
-    pageToken: args["--page-token"]?.trim() || undefined,
-  }, agent);
+  const page = await agent.requireServiceByType(EmailService).getMessages(
+    {
+      box,
+      limit,
+      pageToken: args["--page-token"]?.trim() || undefined,
+    },
+    agent,
+  );
   return `
 Messages in ${box}:
 
 ${markdownTable(
-  ["ID", "From", "Subject", "Received"],
-  page.messages.map(message => [
-    message.id,
-    message.from.name ?? message.from.email,
-    message.subject,
-    message.receivedAt.toLocaleString(),
-  ]),
+    ["ID", "From", "Subject", "Received"],
+    page.messages.map((message) => [
+      message.id,
+      message.from.name ?? message.from.email,
+      message.subject,
+      message.receivedAt.toLocaleString(),
+    ]),
 )}
 ${page.nextPageToken ? `\n\nNext page token: ${page.nextPageToken}` : ""}
   `.trim();
@@ -57,4 +66,10 @@ const help = `List recent messages from a selected email box.
 /email messages list --box sent
 /email messages list --limit 10 --page-token <token>`;
 
-export default {name: "email messages list", description: "List messages", inputSchema, help, execute} satisfies TokenRingAgentCommand<typeof inputSchema>;
+export default {
+  name: "email messages list",
+  description: "List messages",
+  inputSchema,
+  help,
+  execute,
+} satisfies TokenRingAgentCommand<typeof inputSchema>;

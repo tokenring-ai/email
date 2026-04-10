@@ -1,5 +1,3 @@
-export {EmailConfigSchema, EmailAgentConfigSchema} from "./schema.ts";
-export {default as EmailService} from "./EmailService.ts";
 export type {
   DraftEmailData,
   EmailAddress,
@@ -8,7 +6,9 @@ export type {
   EmailMessage,
   EmailMessagePage,
   EmailMessageQueryOptions,
-  EmailSearchOptions,
   EmailProvider,
+  EmailSearchOptions,
   UpdateDraftEmailData,
 } from "./EmailProvider.ts";
+export {default as EmailService} from "./EmailService.ts";
+export {EmailAgentConfigSchema, EmailConfigSchema} from "./schema.ts";

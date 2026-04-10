@@ -1,5 +1,5 @@
-import Agent from "@tokenring-ai/agent/Agent";
-import {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
+import type Agent from "@tokenring-ai/agent/Agent";
+import type {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
 import EmailService from "../EmailService.ts";
 
@@ -19,11 +19,16 @@ const inputSchema = z.object({
   bcc: z.array(addressSchema).optional().describe("BCC recipients"),
   textBody: z.string().optional().describe("Updated plain text email body"),
   htmlBody: z.string().optional().describe("Updated HTML email body"),
-  threadId: z.string().optional().describe("Optional thread to associate with the draft"),
+  threadId: z
+    .string()
+    .optional()
+    .describe("Optional thread to associate with the draft"),
 });
 
 async function execute(input: z.output<typeof inputSchema>, agent: Agent) {
-  const draft = await agent.requireServiceByType(EmailService).updateDraft(input, agent);
+  const draft = await agent
+    .requireServiceByType(EmailService)
+    .updateDraft(input, agent);
   agent.infoMessage(`[${name}] Draft updated: ${draft.id}`);
   return {type: "json" as const, data: draft};
 }

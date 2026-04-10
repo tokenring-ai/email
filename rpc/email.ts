@@ -1,12 +1,12 @@
 import {AgentManager} from "@tokenring-ai/agent";
-import TokenRingApp from "@tokenring-ai/app";
+import type TokenRingApp from "@tokenring-ai/app";
 import {createRPCEndpoint} from "@tokenring-ai/rpc/createRPCEndpoint";
 import EmailService from "../EmailService.ts";
 import {EmailState} from "../state/EmailState.ts";
 import EmailRpcSchema from "./schema.ts";
 
 export default createRPCEndpoint(EmailRpcSchema, {
-  async getEmailProviders(_args, app: TokenRingApp) {
+  getEmailProviders(_args, app: TokenRingApp) {
     const emailService = app.requireService(EmailService);
 
     return {
@@ -73,14 +73,17 @@ export default createRPCEndpoint(EmailRpcSchema, {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
 
-    const draft = await app.requireService(EmailService).createDraft({
-      subject: args.subject,
-      to: args.to,
-      cc: args.cc,
-      bcc: args.bcc,
-      textBody: args.textBody,
-      htmlBody: args.htmlBody,
-    }, agent);
+    const draft = await app.requireService(EmailService).createDraft(
+      {
+        subject: args.subject,
+        to: args.to,
+        cc: args.cc,
+        bcc: args.bcc,
+        textBody: args.textBody,
+        htmlBody: args.htmlBody,
+      },
+      agent,
+    );
 
     return {
       draft,
@@ -92,7 +95,9 @@ export default createRPCEndpoint(EmailRpcSchema, {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
 
-    const draft = await app.requireService(EmailService).updateDraft(args.updatedData, agent);
+    const draft = await app
+      .requireService(EmailService)
+      .updateDraft(args.updatedData, agent);
 
     return {
       draft,
@@ -104,7 +109,9 @@ export default createRPCEndpoint(EmailRpcSchema, {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
 
-    const draft = await app.requireService(EmailService).sendCurrentDraft(agent);
+    const draft = await app
+      .requireService(EmailService)
+      .sendCurrentDraft(agent);
 
     return {
       draft,
@@ -112,7 +119,7 @@ export default createRPCEndpoint(EmailRpcSchema, {
     };
   },
 
-  async getEmailState(args, app: TokenRingApp) {
+  getEmailState(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) throw new Error("Agent not found");
     const emailService = app.requireService(EmailService);

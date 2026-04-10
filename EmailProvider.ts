@@ -3,7 +3,7 @@ import {z} from "zod";
 // Zod schemas
 export const EmailAddressSchema = z.object({
   email: z.string(),
-  name: z.string().optional()
+  name: z.string().optional(),
 });
 
 export const EmailMessageSchema = z.object({
@@ -20,7 +20,7 @@ export const EmailMessageSchema = z.object({
   labels: z.array(z.string()).optional(),
   isRead: z.boolean(),
   receivedAt: z.date(),
-  sentAt: z.date().optional()
+  sentAt: z.date().optional(),
 });
 
 export const EmailDraftSchema = z.object({
@@ -33,7 +33,7 @@ export const EmailDraftSchema = z.object({
   textBody: z.string().optional(),
   htmlBody: z.string().optional(),
   createdAt: z.date(),
-  updatedAt: z.date()
+  updatedAt: z.date(),
 });
 
 export const EmailBoxSchema = z.object({
@@ -66,12 +66,16 @@ export type EmailBox = z.infer<typeof EmailBoxSchema>;
 export type EmailMessage = z.infer<typeof EmailMessageSchema>;
 export type EmailMessagePage = z.infer<typeof EmailMessagePageSchema>;
 export type EmailDraft = z.infer<typeof EmailDraftSchema>;
-export type EmailMessageQueryOptions = z.infer<typeof EmailMessageQueryOptionsSchema>;
+export type EmailMessageQueryOptions = z.infer<
+  typeof EmailMessageQueryOptionsSchema
+>;
 export type EmailSearchOptions = z.infer<typeof EmailSearchOptionsSchema>;
 
 // Derived types
 export type DraftEmailData = Omit<EmailDraft, "id" | "createdAt" | "updatedAt">;
-export type UpdateDraftEmailData = Partial<Omit<EmailDraft, "id" | "createdAt" | "updatedAt">>;
+export type UpdateDraftEmailData = Partial<
+  Omit<EmailDraft, "id" | "createdAt" | "updatedAt">
+>;
 
 export interface EmailProvider {
   description: string;

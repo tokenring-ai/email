@@ -1,6 +1,6 @@
 import {CommandFailedError} from "@tokenring-ai/agent/AgentError";
 import type {TreeLeaf} from "@tokenring-ai/agent/question";
-import {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand,} from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
@@ -13,21 +13,28 @@ const inputSchema = {
   },
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({
+                         args,
+                         agent,
+                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
 
   try {
     const box = args["--box"]?.trim() || "inbox";
-    const {messages} = await emailService.getMessages({box, limit: 25}, agent);
+    const {messages} = await emailService.getMessages(
+      {box, limit: 25},
+      agent,
+    );
     if (!messages?.length) return "No messages found.";
 
-    const tree: TreeLeaf[] = messages.map(message => ({
+    const tree: TreeLeaf[] = messages.map((message) => ({
       name: `${message.isRead ? " " : "*"} ${message.subject} (${new Date(message.receivedAt).toLocaleDateString()})`,
       value: message.id,
     }));
 
     const selection = await agent.askQuestion({
-      message: "Choose a message to inspect or select nothing to clear the current selection",
+      message:
+        "Choose a message to inspect or select nothing to clear the current selection",
       question: {
         type: "treeSelect",
         label: "Email Message Selection",
@@ -47,7 +54,9 @@ async function execute({args, agent}: AgentCommandInputType<typeof inputSchema>)
     const message = await emailService.selectMessageById(selection[0], agent);
     return `Selected message: "${message.subject}"`;
   } catch (error) {
-    throw new CommandFailedError(`Error during message selection: ${error instanceof Error ? error.message : String(error)}`);
+    throw new CommandFailedError(
+      `Error during message selection: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -58,4 +67,10 @@ const help = `Interactively select an inbox message to inspect.
 /email message select
 /email message select --box sent`;
 
-export default {name: "email message select", description: "Select a message", inputSchema, help, execute} satisfies TokenRingAgentCommand<typeof inputSchema>;
+export default {
+  name: "email message select",
+  description: "Select a message",
+  inputSchema,
+  help,
+  execute,
+} satisfies TokenRingAgentCommand<typeof inputSchema>;
