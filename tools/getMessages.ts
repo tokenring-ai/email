@@ -1,5 +1,5 @@
 import type Agent from "@tokenring-ai/agent/Agent";
-import type {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
+import type {TokenRingToolDefinition, TokenRingToolResult} from "@tokenring-ai/chat/schema";
 import markdownTable from "@tokenring-ai/utility/string/markdownTable";
 import {z} from "zod";
 import EmailService from "../EmailService.ts";
@@ -28,7 +28,7 @@ function formatAddress(address: { email: string; name?: string }): string {
 async function execute(
   {box, limit, unreadOnly, pageToken}: z.output<typeof inputSchema>,
   agent: Agent,
-) {
+): Promise<TokenRingToolResult> {
   const page = await agent
     .requireServiceByType(EmailService)
     .getMessages({box, limit, unreadOnly, pageToken}, agent);

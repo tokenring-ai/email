@@ -16,7 +16,7 @@ import type {
   EmailSearchOptions,
   UpdateDraftEmailData,
 } from "./EmailProvider.ts";
-import {EmailAgentConfigSchema, type EmailConfigSchema, type EmailWatchSchema,} from "./schema.ts";
+import {EmailAgentConfigSchema, type EmailConfigSchema, type EmailWatchSchema} from "./schema.ts";
 import {EmailState} from "./state/EmailState.ts";
 
 export default class EmailService implements TokenRingService {
@@ -124,12 +124,10 @@ ${message.textBody ?? message.htmlBody}
               from: `Email from ${message.from}`,
               attachments: [
                 {
-                  type: "attachment",
                   name: message.subject,
                   encoding: "text",
                   mimeType: "message/rfc822",
                   body,
-                  timestamp: Date.now(),
                 },
               ],
             });

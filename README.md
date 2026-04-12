@@ -101,11 +101,13 @@ interface EmailProvider {
 All types are exported from `pkg/email/EmailProvider.ts`:
 
 - **`EmailAddress`**: Email address with optional name
+
   ```typescript
   { email: string; name?: string }
   ```
 
 - **`EmailMessage`**: Normalized inbox message
+
   ```typescript
   {
     id: string;
@@ -126,6 +128,7 @@ All types are exported from `pkg/email/EmailProvider.ts`:
   ```
 
 - **`EmailDraft`**: Editable draft structure
+
   ```typescript
   {
     id: string;
@@ -142,11 +145,13 @@ All types are exported from `pkg/email/EmailProvider.ts`:
   ```
 
 - **`EmailInboxFilterOptions`**: Inbox listing filters
+
   ```typescript
   { limit?: number; unreadOnly?: boolean }
   ```
 
 - **`EmailSearchOptions`**: Search filters
+
   ```typescript
   { query: string; limit?: number; unreadOnly?: boolean }
   ```
@@ -164,12 +169,14 @@ The package registers 8 tools with the chat system:
 Retrieve recent messages from the current inbox.
 
 **Parameters**:
+
 - `limit` (optional, number): Maximum messages to return (default: 25)
 - `unreadOnly` (optional, boolean): Filter to unread messages only
 
 **Returns**: Formatted table of messages with ID, From, Subject, Received, and Read status
 
 **Example**:
+
 ```typescript
 // Tool call
 email_getInboxMessages({ limit: 10, unreadOnly: true })
@@ -180,6 +187,7 @@ email_getInboxMessages({ limit: 10, unreadOnly: true })
 Search messages using the active email provider.
 
 **Parameters**:
+
 - `query` (string): Search query
 - `limit` (optional, number): Maximum results (default: 25)
 - `unreadOnly` (optional, boolean): Filter to unread only
@@ -187,6 +195,7 @@ Search messages using the active email provider.
 **Returns**: Formatted table of matching messages
 
 **Example**:
+
 ```typescript
 email_searchMessages({ query: "invoice", limit: 5 })
 ```
@@ -196,11 +205,13 @@ email_searchMessages({ query: "invoice", limit: 5 })
 Select a message by ID for further inspection.
 
 **Parameters**:
+
 - `id` (string): The unique identifier of the email message
 
 **Returns**: Selected message details with subject, from, received date, and JSON representation
 
 **Example**:
+
 ```typescript
 email_selectMessage({ id: "msg_12345" })
 ```
@@ -214,6 +225,7 @@ Retrieve the currently selected email message.
 **Returns**: Current message data or "No email message is currently selected"
 
 **Example**:
+
 ```typescript
 email_getCurrentMessage({})
 ```
@@ -223,6 +235,7 @@ email_getCurrentMessage({})
 Create a new email draft.
 
 **Parameters**:
+
 - `subject` (string): Email subject line
 - `to` (EmailAddress[]): Primary recipients (minimum 1)
 - `cc` (optional, EmailAddress[]): CC recipients
@@ -234,6 +247,7 @@ Create a new email draft.
 **Returns**: Created draft with ID
 
 **Example**:
+
 ```typescript
 email_createDraft({
   subject: "Follow up",
@@ -251,6 +265,7 @@ Update the currently selected email draft.
 **Returns**: Updated draft
 
 **Example**:
+
 ```typescript
 email_updateDraft({
   subject: "Updated: Follow up",
@@ -267,6 +282,7 @@ Retrieve the currently selected email draft.
 **Returns**: Current draft or "No email draft is currently selected"
 
 **Example**:
+
 ```typescript
 email_getCurrentDraft({})
 ```
@@ -280,6 +296,7 @@ Send the currently selected email draft.
 **Returns**: Sent email confirmation
 
 **Example**:
+
 ```typescript
 email_sendCurrentDraft({})
 ```
@@ -295,6 +312,7 @@ The package registers 14 slash-prefixed commands:
 Display the currently active email provider.
 
 **Example**:
+
 ```
 /email provider get
 # Output: Current provider: gmail
@@ -305,6 +323,7 @@ Display the currently active email provider.
 Set the active email provider by name.
 
 **Example**:
+
 ```
 /email provider set gmail
 # Output: Active provider set to: gmail
@@ -315,6 +334,7 @@ Set the active email provider by name.
 Interactively select the active email provider. Auto-selects if only one provider is configured.
 
 **Example**:
+
 ```
 /email provider select
 # Opens interactive tree selection
@@ -325,6 +345,7 @@ Interactively select the active email provider. Auto-selects if only one provide
 Reset the active email provider to the initial configured value.
 
 **Example**:
+
 ```
 /email provider reset
 # Output: Provider reset to gmail
@@ -337,9 +358,11 @@ Reset the active email provider to the initial configured value.
 List recent inbox messages from the active provider.
 
 **Options**:
+
 - `--limit <number>`: Optional limit for number of messages (default: 20)
 
 **Example**:
+
 ```
 /email inbox list
 /email inbox list --limit 10
@@ -350,6 +373,7 @@ List recent inbox messages from the active provider.
 Search messages from the active email provider.
 
 **Example**:
+
 ```
 /email search invoice
 /email search "from:alex@example.com project"
@@ -362,6 +386,7 @@ Search messages from the active email provider.
 Display the currently selected email message subject.
 
 **Example**:
+
 ```
 /email message get
 # Output: Current message: Project Update
@@ -372,6 +397,7 @@ Display the currently selected email message subject.
 Interactively select an inbox message to inspect.
 
 **Example**:
+
 ```
 /email message select
 # Opens interactive tree selection
@@ -382,6 +408,7 @@ Interactively select an inbox message to inspect.
 Select an email message by its ID.
 
 **Example**:
+
 ```
 /email message set --id 12345
 # Output: Selected message: Project Update
@@ -392,6 +419,7 @@ Select an email message by its ID.
 Display detailed information about the currently selected email message.
 
 **Example**:
+
 ```
 /email message info
 # Output: Provider, Subject, From, To, Received, Read, CC, Labels, Snippet
@@ -402,6 +430,7 @@ Display detailed information about the currently selected email message.
 Clear the current email message selection.
 
 **Example**:
+
 ```
 /email message clear
 # Output: Message cleared. No email message is currently selected.
@@ -414,6 +443,7 @@ Clear the current email message selection.
 Display the currently selected draft subject.
 
 **Example**:
+
 ```
 /email draft get
 # Output: Current draft: Follow up
@@ -424,6 +454,7 @@ Display the currently selected draft subject.
 Clear the current email draft selection.
 
 **Example**:
+
 ```
 /email draft clear
 # Output: Draft cleared. No email draft is currently selected.
@@ -434,6 +465,7 @@ Clear the current email draft selection.
 Send the currently selected email draft.
 
 **Example**:
+
 ```
 /email draft send
 # Output: Sent email "Follow up" to alex@example.com
@@ -448,11 +480,13 @@ The package registers 4 scripting functions for programmatic access:
 Retrieve inbox messages.
 
 **Parameters**:
+
 - `limit` (optional, string): Number of messages to retrieve
 
 **Returns**: JSON string of messages
 
 **Example**:
+
 ```typescript
 const messages = await scripting.getInboxMessages("10");
 const parsed = JSON.parse(messages);
@@ -463,12 +497,14 @@ const parsed = JSON.parse(messages);
 Search email messages.
 
 **Parameters**:
+
 - `query` (string): Search query
 - `limit` (optional, string): Number of results
 
 **Returns**: JSON string of matching messages
 
 **Example**:
+
 ```typescript
 const results = await scripting.searchEmailMessages("invoice", "5");
 ```
@@ -478,6 +514,7 @@ const results = await scripting.searchEmailMessages("invoice", "5");
 Create an email draft.
 
 **Parameters**:
+
 - `subject` (string): Email subject
 - `bodyText` (string): Email body text
 - `toCsv` (string): Comma-separated recipient emails
@@ -485,6 +522,7 @@ Create an email draft.
 **Returns**: String with draft ID
 
 **Example**:
+
 ```typescript
 const result = await scripting.createEmailDraft(
   "Follow up",
@@ -503,6 +541,7 @@ Send the current draft.
 **Returns**: String with sent email ID
 
 **Example**:
+
 ```typescript
 const result = await scripting.sendCurrentEmailDraft();
 // Output: "Sent email: sent_12345"

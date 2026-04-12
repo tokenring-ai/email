@@ -1,5 +1,5 @@
 import type Agent from "@tokenring-ai/agent/Agent";
-import type {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
+import type {TokenRingToolDefinition, TokenRingToolResult} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
 import EmailService from "../EmailService.ts";
 
@@ -11,7 +11,7 @@ const inputSchema = z.object({
   id: z.string().describe("The unique identifier of the email message"),
 });
 
-async function execute({id}: z.output<typeof inputSchema>, agent: Agent) {
+async function execute({id}: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
   const message = await agent
     .requireServiceByType(EmailService)
     .selectMessageById(id, agent);

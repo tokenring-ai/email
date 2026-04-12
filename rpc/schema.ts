@@ -1,6 +1,6 @@
 import type {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
-import {EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema,} from "../EmailProvider.ts";
+import {EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema} from "../EmailProvider.ts";
 
 export default {
   name: "Email RPC",

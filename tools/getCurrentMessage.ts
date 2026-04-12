@@ -1,5 +1,5 @@
 import type Agent from "@tokenring-ai/agent/Agent";
-import type {TokenRingToolDefinition} from "@tokenring-ai/chat/schema";
+import type {TokenRingToolDefinition, TokenRingToolResult} from "@tokenring-ai/chat/schema";
 import {z} from "zod";
 import EmailService from "../EmailService.ts";
 
@@ -9,12 +9,12 @@ const description = "Retrieve the currently selected email message";
 
 const inputSchema = z.object({});
 
-function execute(_input: z.output<typeof inputSchema>, agent: Agent) {
+function execute(_input: z.output<typeof inputSchema>, agent: Agent): TokenRingToolResult {
   const message = agent
     .requireServiceByType(EmailService)
     .getCurrentMessage(agent);
   return message
-    ? {type: "json" as const, data: message}
+    ? JSON.stringify(message)
     : "No email message is currently selected.";
 }
 
