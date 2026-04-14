@@ -3,10 +3,10 @@ import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-async function execute({
+function execute({
                          agent,
-                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  await agent.requireServiceByType(EmailService).clearCurrentMessage(agent);
+                       }: AgentCommandInputType<typeof inputSchema>) {
+  agent.requireServiceByType(EmailService).clearCurrentMessage(agent);
   return "Message cleared. No email message is currently selected.";
 }
 

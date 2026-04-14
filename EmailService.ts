@@ -19,6 +19,10 @@ import type {
 import {EmailAgentConfigSchema, type EmailConfigSchema, type EmailWatchSchema} from "./schema.ts";
 import {EmailState} from "./state/EmailState.ts";
 
+function combineEmailAddressAndName({email, name}: { email: string, name?: string | undefined }) {
+  return name ? `${name} <${email}>` : email;
+}
+
 export default class EmailService implements TokenRingService {
   readonly name = "EmailService";
   description = "Abstract interface for email inbox and drafting operations";
@@ -63,8 +67,8 @@ export default class EmailService implements TokenRingService {
 
           await this.checkForNewEmails(watch, agent);
           await delay(this.options.pollInterval, null, {signal});
-        } catch (error) {
-          agent.errorMessage(`Error while checking for new emails: ${error}`);
+        } catch (error: unknown) {
+          agent.errorMessage(`Error while checking for new emails: ${error as Error}`);
         }
       }
       agent.mutateState(EmailState, (state) => {
@@ -103,8 +107,8 @@ export default class EmailService implements TokenRingService {
     for (const message of messagesToProcess) {
       if (message.textBody || message.htmlBody) {
         const body = `
-From: ${message.from}
-To: ${message.to}
+From: ${combineEmailAddressAndName(message.from)}
+To: ${message.to.map(combineEmailAddressAndName).join(", ")}
 Received At: ${message.receivedAt.toISOString()}
 Subject: ${message.subject}
 
@@ -114,14 +118,15 @@ ${message.textBody ?? message.htmlBody}
         for (const action of actions) {
           const pattern = new RegExp(action.pattern, "is");
           if (pattern.test(body)) {
+            const fromString = combineEmailAddressAndName(message.from);
             agent.handleInput({
-              from: `Email from ${message.from}`,
+              from: `Email from ${fromString}`,
               message: `/message set --id ${message.id}`,
             });
 
             agent.handleInput({
               message: action.command,
-              from: `Email from ${message.from}`,
+              from: `Email from ${fromString}`,
               attachments: [
                 {
                   name: message.subject,

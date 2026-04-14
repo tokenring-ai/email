@@ -47,13 +47,13 @@ async function execute({
 
     if (!selection) return "Message selection cancelled.";
     if (selection.length === 0) {
-      await emailService.clearCurrentMessage(agent);
+      emailService.clearCurrentMessage(agent);
       return "Message selection cleared.";
     }
 
     const message = await emailService.selectMessageById(selection[0], agent);
     return `Selected message: "${message.subject}"`;
-  } catch (error) {
+  } catch (error: unknown) {
     throw new CommandFailedError(
       `Error during message selection: ${error instanceof Error ? error.message : String(error)}`,
     );
