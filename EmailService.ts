@@ -29,9 +29,9 @@ export default class EmailService implements TokenRingService {
 
   private providers = new KeyedRegistry<EmailProvider>();
 
-  registerEmailProvider = this.providers.register;
-  getAvailableProviders = this.providers.getAllItemNames;
-  requireEmailProvider = this.providers.requireItemByName;
+  registerEmailProvider = this.providers.set;
+  getAvailableProviders = this.providers.keysArray;
+  requireEmailProvider = this.providers.require;
 
   constructor(readonly options: z.output<typeof EmailConfigSchema>) {
   }
@@ -146,7 +146,7 @@ ${message.textBody ?? message.htmlBody}
     const activeProvider = agent.getState(EmailState).activeProvider;
     if (!activeProvider)
       throw new Error("No email provider is currently selected");
-    return this.providers.requireItemByName(activeProvider);
+    return this.providers.require(activeProvider);
   }
 
   setActiveProvider(name: string, agent: Agent): void {
