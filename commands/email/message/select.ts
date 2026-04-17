@@ -5,7 +5,7 @@ import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
   args: {
-    "--box": {
+    "box": {
       type: "string",
       required: false,
       description: "Email box to browse while selecting a message",
@@ -20,7 +20,7 @@ async function execute({
   const emailService = agent.requireServiceByType(EmailService);
 
   try {
-    const box = args["--box"]?.trim() || "inbox";
+    const box = args.box?.trim() || "inbox";
     const {messages} = await emailService.getMessages(
       {box, limit: 25},
       agent,

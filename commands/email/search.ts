@@ -5,7 +5,7 @@ import EmailService from "../../EmailService.ts";
 
 const inputSchema = {
   args: {
-    "--box": {
+    "box": {
       type: "string",
       required: false,
       description: "Email box to search within",
@@ -22,7 +22,7 @@ async function execute({
   const query = remainder.trim();
   if (!query) throw new CommandFailedError("Usage: /email search <query>");
 
-  const box = args["--box"]?.trim() || "inbox";
+  const box = args.box?.trim() || "inbox";
   const messages = await agent
     .requireServiceByType(EmailService)
     .searchMessages({query, box}, agent);

@@ -3,7 +3,7 @@ import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
   args: {
-    "--id": {
+    "id": {
       type: "string",
       required: true,
       description: "The ID of the message to select",
@@ -17,7 +17,7 @@ async function execute({
                        }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const message = await agent
     .requireServiceByType(EmailService)
-    .selectMessageById(args["--id"], agent);
+    .selectMessageById(args.id, agent);
   return `Selected message: ${message.subject}`;
 }
 

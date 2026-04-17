@@ -5,17 +5,17 @@ import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
   args: {
-    "--box": {
+    "box": {
       type: "string",
       required: false,
       description: "Email box to list from",
     },
-    "--limit": {
+    "limit": {
       type: "number",
       required: false,
       description: "Optional limit for number of messages",
     },
-    "--page-token": {
+    "page-token": {
       type: "string",
       required: false,
       description: "Pagination token returned by a previous list call",
@@ -27,8 +27,8 @@ async function execute({
                          args,
                          agent,
                        }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const box = args["--box"]?.trim() || "inbox";
-  const limit = args["--limit"] ?? 20;
+  const box = args.box?.trim() || "inbox";
+  const limit = args.limit ?? 20;
   if (!Number.isFinite(limit) || limit <= 0)
     throw new CommandFailedError(
       "Usage: /email messages list --box <box> --limit <limit>",
@@ -38,7 +38,7 @@ async function execute({
     {
       box,
       limit,
-      pageToken: args["--page-token"]?.trim() || undefined,
+      pageToken: args["page-token"]?.trim() || undefined,
     },
     agent,
   );
