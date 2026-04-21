@@ -1,5 +1,6 @@
 import type {RPCSchema} from "@tokenring-ai/rpc/types";
 import {z} from "zod";
+import {AgentNotFoundSchema} from "@tokenring-ai/agent/schema";
 import {EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema} from "../EmailProvider.ts";
 
 export default {
@@ -75,10 +76,14 @@ export default {
         textBody: z.string().optional(),
         htmlBody: z.string().optional(),
       }),
-      result: z.object({
-        draft: EmailDraftSchema,
-        message: z.string(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          draft: EmailDraftSchema,
+          message: z.string(),
+        }),
+        AgentNotFoundSchema
+      ]),
     },
     updateDraft: {
       type: "mutation",
@@ -90,32 +95,44 @@ export default {
           updatedAt: true,
         }).partial(),
       }),
-      result: z.object({
-        draft: EmailDraftSchema,
-        message: z.string(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          draft: EmailDraftSchema,
+          message: z.string(),
+        }),
+        AgentNotFoundSchema
+      ]),
     },
     sendCurrentDraft: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
       }),
-      result: z.object({
-        draft: EmailDraftSchema,
-        message: z.string(),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          draft: EmailDraftSchema,
+          message: z.string(),
+        }),
+        AgentNotFoundSchema
+      ]),
     },
     getEmailState: {
       type: "query",
       input: z.object({
         agentId: z.string(),
       }),
-      result: z.object({
-        selectedMessageId: z.string().nullable(),
-        selectedDraftId: z.string().nullable(),
-        selectedProvider: z.string().nullable(),
-        availableProviders: z.array(z.string()),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          selectedMessageId: z.string().nullable(),
+          selectedDraftId: z.string().nullable(),
+          selectedProvider: z.string().nullable(),
+          availableProviders: z.array(z.string()),
+        }),
+        AgentNotFoundSchema
+      ]),
     },
     updateEmailState: {
       type: "mutation",
@@ -124,12 +141,16 @@ export default {
         selectedProvider: z.string().optional(),
         selectedMessageId: z.string().optional(),
       }),
-      result: z.object({
-        selectedMessageId: z.string().nullable(),
-        selectedDraftId: z.string().nullable(),
-        selectedProvider: z.string().nullable(),
-        availableProviders: z.array(z.string()),
-      }),
+      result: z.discriminatedUnion("status", [
+        z.object({
+          status: z.literal('success'),
+          selectedMessageId: z.string().nullable(),
+          selectedDraftId: z.string().nullable(),
+          selectedProvider: z.string().nullable(),
+          availableProviders: z.array(z.string()),
+        }),
+        AgentNotFoundSchema
+      ]),
     },
   },
 } satisfies RPCSchema;
