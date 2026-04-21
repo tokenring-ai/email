@@ -1,9 +1,9 @@
-import type {Agent} from "@tokenring-ai/agent";
-import {AgentStateSlice} from "@tokenring-ai/agent/types";
+import type { Agent } from "@tokenring-ai/agent";
+import { AgentStateSlice } from "@tokenring-ai/agent/types";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
-import {z} from "zod";
-import {type EmailDraft, EmailDraftSchema, type EmailMessage, EmailMessageSchema} from "../EmailProvider.ts";
-import {type EmailAgentConfigSchema, EmailWatchSchema} from "../schema.ts";
+import { z } from "zod";
+import { type EmailDraft, EmailDraftSchema, type EmailMessage, EmailMessageSchema } from "../EmailProvider.ts";
+import { type EmailAgentConfigSchema, EmailWatchSchema } from "../schema.ts";
 
 const serializationSchema = z
   .object({
@@ -55,11 +55,8 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
   }
 
   show(): string {
-    const watchLines = (this.watch?.actions.length ?? 0) > 0
-      ? this.watch!.actions.map(
-        val => `Pattern: ${val.pattern}, Command: ${val.command}`,
-      )
-      : ["No watches configured"];
+    const watchLines =
+      (this.watch?.actions.length ?? 0) > 0 ? this.watch!.actions.map(val => `Pattern: ${val.pattern}, Command: ${val.command}`) : ["No watches configured"];
     return `Active Email Provider: ${this.activeProvider}
 Watches:
 ${markdownList(watchLines)}`;

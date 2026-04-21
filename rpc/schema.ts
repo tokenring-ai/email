@@ -1,7 +1,7 @@
-import type {RPCSchema} from "@tokenring-ai/rpc/types";
-import {z} from "zod";
-import {AgentNotFoundSchema} from "@tokenring-ai/agent/schema";
-import {EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema} from "../EmailProvider.ts";
+import { AgentNotFoundSchema } from "@tokenring-ai/agent/schema";
+import type { RPCSchema } from "@tokenring-ai/rpc/types";
+import { z } from "zod";
+import { EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema } from "../EmailProvider.ts";
 
 export default {
   name: "Email RPC",
@@ -27,15 +27,15 @@ export default {
       type: "query",
       input: z.object({
         provider: z.string(),
-        box: z.string().optional(),
-        limit: z.number().int().positive().optional(),
-        unreadOnly: z.boolean().optional(),
-        pageToken: z.string().optional(),
+        box: z.string().exactOptional(),
+        limit: z.number().int().positive().exactOptional(),
+        unreadOnly: z.boolean().exactOptional(),
+        pageToken: z.string().exactOptional(),
       }),
       result: z.object({
         messages: z.array(EmailMessageSchema),
         count: z.number(),
-        nextPageToken: z.string().optional(),
+        nextPageToken: z.string().exactOptional(),
         message: z.string(),
       }),
     },
@@ -44,9 +44,9 @@ export default {
       input: z.object({
         provider: z.string(),
         query: z.string(),
-        box: z.string().optional(),
-        limit: z.number().int().positive().optional(),
-        unreadOnly: z.boolean().optional(),
+        box: z.string().exactOptional(),
+        limit: z.number().int().positive().exactOptional(),
+        unreadOnly: z.boolean().exactOptional(),
       }),
       result: z.object({
         messages: z.array(EmailMessageSchema),
@@ -71,18 +71,18 @@ export default {
         agentId: z.string(),
         subject: z.string(),
         to: z.array(EmailAddressSchema),
-        cc: z.array(EmailAddressSchema).optional(),
-        bcc: z.array(EmailAddressSchema).optional(),
-        textBody: z.string().optional(),
-        htmlBody: z.string().optional(),
+        cc: z.array(EmailAddressSchema).exactOptional(),
+        bcc: z.array(EmailAddressSchema).exactOptional(),
+        textBody: z.string().exactOptional(),
+        htmlBody: z.string().exactOptional(),
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           draft: EmailDraftSchema,
           message: z.string(),
         }),
-        AgentNotFoundSchema
+        AgentNotFoundSchema,
       ]),
     },
     updateDraft: {
@@ -97,11 +97,11 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           draft: EmailDraftSchema,
           message: z.string(),
         }),
-        AgentNotFoundSchema
+        AgentNotFoundSchema,
       ]),
     },
     sendCurrentDraft: {
@@ -111,11 +111,11 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           draft: EmailDraftSchema,
           message: z.string(),
         }),
-        AgentNotFoundSchema
+        AgentNotFoundSchema,
       ]),
     },
     getEmailState: {
@@ -125,31 +125,31 @@ export default {
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           selectedMessageId: z.string().nullable(),
           selectedDraftId: z.string().nullable(),
           selectedProvider: z.string().nullable(),
           availableProviders: z.array(z.string()),
         }),
-        AgentNotFoundSchema
+        AgentNotFoundSchema,
       ]),
     },
     updateEmailState: {
       type: "mutation",
       input: z.object({
         agentId: z.string(),
-        selectedProvider: z.string().optional(),
-        selectedMessageId: z.string().optional(),
+        selectedProvider: z.string().exactOptional(),
+        selectedMessageId: z.string().exactOptional(),
       }),
       result: z.discriminatedUnion("status", [
         z.object({
-          status: z.literal('success'),
+          status: z.literal("success"),
           selectedMessageId: z.string().nullable(),
           selectedDraftId: z.string().nullable(),
           selectedProvider: z.string().nullable(),
           availableProviders: z.array(z.string()),
         }),
-        AgentNotFoundSchema
+        AgentNotFoundSchema,
       ]),
     },
   },

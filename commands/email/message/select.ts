@@ -1,11 +1,11 @@
-import {CommandFailedError} from "@tokenring-ai/agent/AgentError";
-import type {TreeLeaf} from "@tokenring-ai/agent/question";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import { CommandFailedError } from "@tokenring-ai/agent/AgentError";
+import type { TreeLeaf } from "@tokenring-ai/agent/question";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {
   args: {
-    "box": {
+    box: {
       type: "string",
       required: false,
       description: "Email box to browse while selecting a message",
@@ -13,28 +13,21 @@ const inputSchema = {
   },
 } as const satisfies AgentCommandInputSchema;
 
-async function execute({
-                         args,
-                         agent,
-                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const emailService = agent.requireServiceByType(EmailService);
 
   try {
     const box = args.box?.trim() || "inbox";
-    const {messages} = await emailService.getMessages(
-      {box, limit: 25},
-      agent,
-    );
+    const { messages } = await emailService.getMessages({ box, limit: 25 }, agent);
     if (!messages?.length) return "No messages found.";
 
-    const tree: TreeLeaf[] = messages.map((message) => ({
+    const tree: TreeLeaf[] = messages.map(message => ({
       name: `${message.isRead ? " " : "*"} ${message.subject} (${new Date(message.receivedAt).toLocaleDateString()})`,
       value: message.id,
     }));
 
     const selection = await agent.askQuestion({
-      message:
-        "Choose a message to inspect or select nothing to clear the current selection",
+      message: "Choose a message to inspect or select nothing to clear the current selection",
       question: {
         type: "treeSelect",
         label: "Email Message Selection",
@@ -54,9 +47,7 @@ async function execute({
     const message = await emailService.selectMessageById(selection[0], agent);
     return `Selected message: "${message.subject}"`;
   } catch (error: unknown) {
-    throw new CommandFailedError(
-      `Error during message selection: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw new CommandFailedError(`Error during message selection: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

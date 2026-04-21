@@ -1,8 +1,9 @@
-import {AgentManager} from "@tokenring-ai/agent";
+import { AgentManager } from "@tokenring-ai/agent";
 import type TokenRingApp from "@tokenring-ai/app";
-import {createRPCEndpoint} from "@tokenring-ai/rpc/createRPCEndpoint";
+import { createRPCEndpoint } from "@tokenring-ai/rpc/createRPCEndpoint";
+import { stripUndefinedKeys } from "@tokenring-ai/utility/object/stripObject";
 import EmailService from "../EmailService.ts";
-import {EmailState} from "../state/EmailState.ts";
+import { EmailState } from "../state/EmailState.ts";
 import EmailRpcSchema from "./schema.ts";
 
 export default createRPCEndpoint(EmailRpcSchema, {
@@ -26,30 +27,34 @@ export default createRPCEndpoint(EmailRpcSchema, {
   async getMessages(args, app: TokenRingApp) {
     const emailService = app.requireService(EmailService);
     const provider = emailService.requireEmailProvider(args.provider);
-    const page = await provider.getMessages({
-      box: args.box ?? "inbox",
-      limit: args.limit,
-      unreadOnly: args.unreadOnly,
-      pageToken: args.pageToken,
-    });
+    const page = await provider.getMessages(
+      stripUndefinedKeys({
+        box: args.box ?? "inbox",
+        limit: args.limit,
+        unreadOnly: args.unreadOnly,
+        pageToken: args.pageToken,
+      }),
+    );
 
-    return {
+    return stripUndefinedKeys({
       messages: page.messages,
       count: page.messages.length,
       nextPageToken: page.nextPageToken,
       message: `Found ${page.messages.length} messages in ${args.box ?? "inbox"}`,
-    };
+    });
   },
 
   async searchMessages(args, app: TokenRingApp) {
     const emailService = app.requireService(EmailService);
     const provider = emailService.requireEmailProvider(args.provider);
-    const messages = await provider.searchMessages({
-      query: args.query,
-      box: args.box ?? "inbox",
-      limit: args.limit,
-      unreadOnly: args.unreadOnly,
-    });
+    const messages = await provider.searchMessages(
+      stripUndefinedKeys({
+        query: args.query,
+        box: args.box ?? "inbox",
+        limit: args.limit,
+        unreadOnly: args.unreadOnly,
+      }),
+    );
 
     return {
       messages,
@@ -72,23 +77,23 @@ export default createRPCEndpoint(EmailRpcSchema, {
   async createDraft(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) {
-      return {status: 'agentNotFound'};
+      return { status: "agentNotFound" };
     }
 
     const draft = await app.requireService(EmailService).createDraft(
-      {
+      stripUndefinedKeys({
         subject: args.subject,
         to: args.to,
         cc: args.cc,
         bcc: args.bcc,
         textBody: args.textBody,
         htmlBody: args.htmlBody,
-      },
+      }),
       agent,
     );
 
     return {
-      status: 'success',
+      status: "success",
       draft,
       message: `Created draft: ${draft.id}`,
     };
@@ -97,15 +102,13 @@ export default createRPCEndpoint(EmailRpcSchema, {
   async updateDraft(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) {
-      return {status: 'agentNotFound'};
+      return { status: "agentNotFound" };
     }
 
-    const draft = await app
-      .requireService(EmailService)
-      .updateDraft(args.updatedData, agent);
+    const draft = await app.requireService(EmailService).updateDraft(stripUndefinedKeys(args.updatedData), agent);
 
     return {
-      status: 'success',
+      status: "success",
       draft,
       message: `Updated draft: ${draft.id}`,
     };
@@ -114,15 +117,13 @@ export default createRPCEndpoint(EmailRpcSchema, {
   async sendCurrentDraft(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) {
-      return {status: 'agentNotFound'};
+      return { status: "agentNotFound" };
     }
 
-    const draft = await app
-      .requireService(EmailService)
-      .sendCurrentDraft(agent);
+    const draft = await app.requireService(EmailService).sendCurrentDraft(agent);
 
     return {
-      status: 'success',
+      status: "success",
       draft,
       message: `Sent email: ${draft.id}`,
     };
@@ -131,14 +132,14 @@ export default createRPCEndpoint(EmailRpcSchema, {
   getEmailState(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) {
-      return {status: 'agentNotFound'};
+      return { status: "agentNotFound" };
     }
     const emailService = app.requireService(EmailService);
 
     const state = agent.getState(EmailState);
 
     return {
-      status: 'success',
+      status: "success",
       selectedMessageId: state.currentEmail?.id ?? null,
       selectedDraftId: state.currentDraft?.id ?? null,
       selectedProvider: state.activeProvider ?? null,
@@ -149,7 +150,7 @@ export default createRPCEndpoint(EmailRpcSchema, {
   async updateEmailState(args, app: TokenRingApp) {
     const agent = app.requireService(AgentManager).getAgent(args.agentId);
     if (!agent) {
-      return {status: 'agentNotFound'};
+      return { status: "agentNotFound" };
     }
     const emailService = app.requireService(EmailService);
 
@@ -164,7 +165,7 @@ export default createRPCEndpoint(EmailRpcSchema, {
     const state = agent.getState(EmailState);
 
     return {
-      status: 'success',
+      status: "success",
       selectedMessageId: state.currentEmail?.id ?? null,
       selectedDraftId: state.currentDraft?.id ?? null,
       selectedProvider: state.activeProvider ?? null,

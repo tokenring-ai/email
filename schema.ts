@@ -1,4 +1,4 @@
-import {z} from "zod";
+import { z } from "zod";
 
 export const EmailWatchSchema = z.object({
   markAsRead: z.boolean().default(false),
@@ -14,8 +14,8 @@ export const EmailWatchSchema = z.object({
 
 export const EmailAgentConfigSchema = z
   .object({
-    provider: z.string().optional(),
-    watch: EmailWatchSchema.optional(),
+    provider: z.string().exactOptional(),
+    watch: EmailWatchSchema.exactOptional(),
   })
   .default({});
 
@@ -23,6 +23,6 @@ export const EmailConfigSchema = z.object({
   pollInterval: z
     .number()
     .default(60)
-    .transform((seconds) => seconds * 1000),
+    .transform(seconds => seconds * 1000),
   agentDefaults: EmailAgentConfigSchema.prefault({}),
 });

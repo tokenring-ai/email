@@ -1,15 +1,11 @@
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-async function execute({
-                         agent,
-                       }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const sent = await agent
-    .requireServiceByType(EmailService)
-    .sendCurrentDraft(agent);
-  return `Sent email "${sent.subject}" to ${sent.to.map((address) => address.name ?? address.email).join(", ")}`;
+async function execute({ agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+  const sent = await agent.requireServiceByType(EmailService).sendCurrentDraft(agent);
+  return `Sent email "${sent.subject}" to ${sent.to.map(address => address.name ?? address.email).join(", ")}`;
 }
 
 export default {

@@ -1,19 +1,14 @@
-import {CommandFailedError} from "@tokenring-ai/agent/AgentError";
-import type {AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand} from "@tokenring-ai/agent/types";
+import { CommandFailedError } from "@tokenring-ai/agent/AgentError";
+import type { AgentCommandInputSchema, AgentCommandInputType, TokenRingAgentCommand } from "@tokenring-ai/agent/types";
 import EmailService from "../../../EmailService.ts";
-import {EmailState} from "../../../state/EmailState.ts";
+import { EmailState } from "../../../state/EmailState.ts";
 
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
-function execute({
-                   agent,
-                 }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
+function execute({ agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const initialProvider = agent.getState(EmailState).initialConfig.provider;
-  if (!initialProvider)
-    throw new CommandFailedError("No initial provider configured");
-  agent
-    .requireServiceByType(EmailService)
-    .setActiveProvider(initialProvider, agent);
+  if (!initialProvider) throw new CommandFailedError("No initial provider configured");
+  agent.requireServiceByType(EmailService).setActiveProvider(initialProvider, agent);
   return Promise.resolve(`Provider reset to ${initialProvider}`);
 }
 

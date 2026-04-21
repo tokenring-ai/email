@@ -7,13 +7,4 @@ import selectMessage from "./tools/selectMessage.ts";
 import sendCurrentDraft from "./tools/sendCurrentDraft.ts";
 import updateDraft from "./tools/updateDraft.ts";
 
-export default [
-  getMessages,
-  searchMessages,
-  selectMessage,
-  getCurrentMessage,
-  createDraft,
-  updateDraft,
-  getCurrentDraft,
-  sendCurrentDraft,
-];
+export default [getMessages, searchMessages, selectMessage, getCurrentMessage, createDraft, updateDraft, getCurrentDraft, sendCurrentDraft];
