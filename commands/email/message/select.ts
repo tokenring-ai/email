@@ -47,7 +47,7 @@ async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema
     const message = await emailService.selectMessageById(selection[0], agent);
     return `Selected message: "${message.subject}"`;
   } catch (error: unknown) {
-    throw new CommandFailedError(`Error during message selection: ${error instanceof Error ? error.message : String(error)}`);
+    throw new CommandFailedError(`Error during message selection: ${Error.isError(error) ? error.message : String(error)}`);
   }
 }
 

@@ -1,5 +1,6 @@
 import type { Agent } from "@tokenring-ai/agent";
 import { AgentStateSlice } from "@tokenring-ai/agent/types";
+import deepClone from "@tokenring-ai/utility/object/deepClone";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import { z } from "zod";
 import { type EmailDraft, EmailDraftSchema, type EmailMessage, EmailMessageSchema } from "../EmailProvider.ts";
@@ -25,15 +26,15 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
 
   constructor(readonly initialConfig: z.output<typeof EmailAgentConfigSchema>) {
     super("EmailState", serializationSchema);
-    this.watch = initialConfig.watch;
+    this.watch = initialConfig.watch ? deepClone(initialConfig.watch) : undefined;
     this.activeProvider = initialConfig.provider;
   }
 
   transferStateFromParent(parent: Agent): void {
     const parentState = parent.getState(EmailState);
     this.activeProvider ??= parentState.activeProvider;
-    this.currentEmail ??= parentState.currentEmail;
-    this.currentDraft ??= parentState.currentDraft;
+    this.currentEmail ??= deepClone(parentState.currentEmail);
+    this.currentDraft ??= deepClone(parentState.currentDraft);
   }
 
   serialize(): z.output<typeof serializationSchema> {

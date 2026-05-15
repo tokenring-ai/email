@@ -17,7 +17,7 @@ IMAP-backed services, or custom internal mail systems) extending the provider in
 - **Draft Management**: Create, update, and manage email drafts
 - **Draft Sending**: Send the current draft through the active provider
 - **Provider Management**: Select and manage email providers per agent
-- **Email Watching**: Configure automated email monitoring with pattern-based actions
+- **Email Watching**: Configure automated email monitoring with pattern-based action triggers
 
 ## Installation
 
@@ -34,7 +34,7 @@ The package is automatically included when using the Token Ring plugin system.
 - **Agent State Management**: Persistent provider selection and state per agent
 - **Chat Tools**: 8 interactive tools for agent operations
 - **Slash Commands**: 14 slash-prefixed commands for CLI-based workflows
-- **Scripting Functions**: 6 programmatic functions for automation
+- **Scripting Functions**: 5 programmatic functions for automation
 - **RPC Endpoints**: 10 RPC methods for external integration
 - **Email Watching**: Automated monitoring with pattern-based action triggers
 - **Type-Safe**: Full TypeScript support with Zod schemas for validation
@@ -375,7 +375,7 @@ email_sendCurrentDraft({})
 
 ## Scripting Functions
 
-The package registers 6 scripting functions for programmatic access:
+The package registers 5 scripting functions for programmatic access:
 
 ### `getEmailBoxes()`
 
@@ -730,38 +730,9 @@ The package is configured under the `email` key in the plugin configuration.
 
 ### Configuration Schema
 
-```typescript
-{
-  email: {
-    // Polling interval in seconds (default: 60, transformed to milliseconds)
-    pollInterval: number,
-
-    // Agent-level defaults
-    agentDefaults: {
-      // Initial provider selection
-      provider?: string,
-
-      // Email watching configuration
-      watch?: {
-        markAsRead: boolean,          // Mark watched emails as read (default: false)
-        unreadOnly: boolean,          // Only consider unread emails (default: false)
-        maxEmailsToConsider: number,  // Max emails to process per check (default: 50)
-        actions: {
-          [actionName: string]: {
-            pattern: string,          // Regex pattern to match against email body
-            command: string           // Command to execute when pattern matches
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-### Example Configuration
-
 ```yaml
 email:
+  # Providers configuration
   providers:
     gmail:
       type: "gmail"
@@ -771,12 +742,20 @@ email:
       type: "exchange"
       description: "Corporate Exchange"
       server: "exchange.company.com"
+  
+  # Polling interval in seconds (default: 60, transformed to milliseconds)
   pollInterval: 60
+  
+  # Agent-level defaults
   agentDefaults:
+    # Initial provider selection
     provider: "gmail"
+    
+    # Email watching configuration
     watch:
-      unreadOnly: true
-      maxEmailsToConsider: 25
+      markAsRead: false          # Mark watched emails as read (default: false)
+      unreadOnly: true           # Only consider unread emails (default: false)
+      maxEmailsToConsider: 25    # Max emails to process per check (default: 50)
       actions:
         invoicePattern:
           pattern: "invoice|receipt|payment"
@@ -785,17 +764,20 @@ email:
 
 ### Configuration Schemas
 
-- **`EmailWatchSchema`**: Watch configuration
+**`EmailWatchSchema`**: Watch configuration
+
 - `markAsRead`: boolean (default: false)
 - `unreadOnly`: boolean (default: false)
 - `maxEmailsToConsider`: number (default: 50)
-- `actions`: Array of { pattern: string, command: string }
+- `actions`: Array of `{ pattern: string, command: string }`
 
-- **`EmailAgentConfigSchema`**: Agent-level config
+**`EmailAgentConfigSchema`**: Agent-level config
+
 - `provider`: optional string
 - `watch`: optional EmailWatchSchema
 
-- **`EmailConfigSchema`**: Full package config
+**`EmailConfigSchema`**: Full package config
+
 - `pollInterval`: number (default: 60, transformed to milliseconds)
 - `agentDefaults`: EmailAgentConfigSchema (prefaulted)
 
@@ -834,6 +816,41 @@ console.log(state.currentEmail);   // EmailMessage | undefined
 agent.mutateState(EmailState, state => {
   state.activeProvider = "exchange";
 });
+```
+
+## Email Watching in Background Tasks
+
+The package supports automated email monitoring with pattern-based action triggers. When configured, the service will:
+
+1. Poll the inbox at the configured `pollInterval`
+2. Check for new unread emails (if `unreadOnly` is true)
+3. Match email bodies against configured regex patterns
+4. Execute associated commands when patterns match
+
+### How Email Watching Works
+
+When a matching email is found:
+
+1. The email message is selected using `/message set --id <id>`
+2. The configured command is executed with the email body as an attachment
+3. The email is marked as processed to prevent duplicate processing
+
+### Example Watch Configuration
+
+```yaml
+email:
+  agentDefaults:
+    watch:
+      markAsRead: true
+      unreadOnly: true
+      maxEmailsToConsider: 25
+      actions:
+        invoicePattern:
+          pattern: "invoice|receipt|payment"
+          command: "/research find latest invoice from sender"
+        supportPattern:
+          pattern: "support|help|issue"
+          command: "/ticket create --priority high"
 ```
 
 ## Integration
@@ -962,6 +979,7 @@ emailService.registerEmailProvider("gmail", new GmailProvider());
 - Configure watching carefully to avoid excessive processing
 - Use regex patterns that are specific to your use case
 - Monitor the `processedEmails` set to prevent duplicate processing
+- Set appropriate `maxEmailsToConsider` limits
 
 ### Error Handling
 
