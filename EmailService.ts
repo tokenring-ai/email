@@ -1,9 +1,9 @@
-import deepClone from "@tokenring-ai/utility/object/deepClone";
-import { setTimeout as delay } from "node:timers/promises";
 import type Agent from "@tokenring-ai/agent/Agent";
 import type { AgentCreationContext } from "@tokenring-ai/agent/types";
 import type { TokenRingService } from "@tokenring-ai/app/types";
+import deepClone from "@tokenring-ai/utility/object/deepClone";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
+import { setTimeout as delay } from "node:timers/promises";
 import type { z } from "zod";
 import type {
   DraftEmailData,

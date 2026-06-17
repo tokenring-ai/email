@@ -11,7 +11,7 @@ const description = "Retrieve messages from a selected email box";
 
 const inputSchema = z.object({
   box: z.string().exactOptional().describe("Email box to read from, defaults to inbox"),
-  limit: z.number().int().positive().default(25).exactOptional(),
+  limit: z.number().int().positive().default(25),
   unreadOnly: z.boolean().exactOptional(),
   pageToken: z.string().exactOptional().describe("Pagination token returned by a previous call"),
 });

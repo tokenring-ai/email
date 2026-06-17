@@ -12,7 +12,7 @@ const description = "Search email messages using the active email provider";
 const inputSchema = z.object({
   query: z.string().describe("Search query to run against the inbox"),
   box: z.string().exactOptional().describe("Email box to search within, defaults to inbox"),
-  limit: z.number().int().positive().default(25).exactOptional(),
+  limit: z.number().int().positive().default(25),
   unreadOnly: z.boolean().exactOptional(),
 });
 
