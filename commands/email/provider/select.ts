@@ -9,7 +9,7 @@ async function execute({ agent }: AgentCommandInputType<typeof inputSchema>): Pr
   const emailService = agent.requireServiceByType(EmailService);
   const available = emailService.getAvailableProviders();
   if (available.length === 0) return "No email providers are registered.";
-  if (available.length === 1) {
+  if (available.length === 1 && available[0]) {
     emailService.setActiveProvider(available[0], agent);
     return `Only one provider configured, auto-selecting: ${available[0]}`;
   }
@@ -32,7 +32,7 @@ async function execute({ agent }: AgentCommandInputType<typeof inputSchema>): Pr
     },
   });
 
-  if (selection) {
+  if (selection?.[0]) {
     emailService.setActiveProvider(selection[0], agent);
     return `Active provider set to: ${selection[0]}`;
   }

@@ -1,4 +1,5 @@
-import { AgentNotFoundSchema } from "@tokenring-ai/agent/schema";
+import { AgentNotFoundSchema } from "@tokenring-ai/rpc/types";
+import { SuccessSchema } from "@tokenring-ai/rpc/types";
 import type { RPCSchema } from "@tokenring-ai/rpc/types";
 import { z } from "zod";
 import { EmailAddressSchema, EmailBoxSchema, EmailDraftSchema, EmailMessageSchema } from "../EmailProvider.ts";
@@ -77,8 +78,7 @@ export default {
         htmlBody: z.string().exactOptional(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           draft: EmailDraftSchema,
           message: z.string(),
         }),
@@ -96,8 +96,7 @@ export default {
         }).partial(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           draft: EmailDraftSchema,
           message: z.string(),
         }),
@@ -110,8 +109,7 @@ export default {
         agentId: z.string(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           draft: EmailDraftSchema,
           message: z.string(),
         }),
@@ -124,8 +122,7 @@ export default {
         agentId: z.string(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           selectedMessageId: z.string().nullable(),
           selectedDraftId: z.string().nullable(),
           selectedProvider: z.string().nullable(),
@@ -142,8 +139,7 @@ export default {
         selectedMessageId: z.string().exactOptional(),
       }),
       result: z.discriminatedUnion("status", [
-        z.object({
-          status: z.literal("success"),
+        SuccessSchema.extend({
           selectedMessageId: z.string().nullable(),
           selectedDraftId: z.string().nullable(),
           selectedProvider: z.string().nullable(),

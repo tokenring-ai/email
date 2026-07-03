@@ -39,7 +39,7 @@ async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema
     });
 
     if (!selection) return "Message selection cancelled.";
-    if (selection.length === 0) {
+    if (!selection[0]) {
       emailService.clearCurrentMessage(agent);
       return "Message selection cleared.";
     }
