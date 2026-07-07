@@ -1,9 +1,10 @@
+import { setTimeout as delay } from "node:timers/promises";
 import type Agent from "@tokenring-ai/agent/Agent";
 import type { AgentCreationContext } from "@tokenring-ai/agent/types";
 import type { TokenRingService } from "@tokenring-ai/app/types";
+import { ConfigurationError } from "@tokenring-ai/app/types";
 import deepClone from "@tokenring-ai/utility/object/deepClone";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
-import { setTimeout as delay } from "node:timers/promises";
 import type { z } from "zod";
 import type {
   DraftEmailData,
@@ -131,7 +132,7 @@ ${message.textBody ?? message.htmlBody}
 
   requireActiveEmailProvider(agent: Agent): EmailProvider {
     const activeProvider = agent.getState(EmailState).activeProvider;
-    if (!activeProvider) throw new Error("No email provider is currently selected");
+    if (!activeProvider) throw new ConfigurationError(this.name, "No email provider is currently selected");
     return this.providers.require(activeProvider);
   }
 
@@ -191,7 +192,7 @@ ${message.textBody ?? message.htmlBody}
 
   updateDraft(data: UpdateDraftEmailData, agent: Agent): Promise<EmailDraft> {
     const currentDraft = this.getCurrentDraft(agent);
-    if (!currentDraft) throw new Error("No draft is currently selected");
+    if (!currentDraft) throw new ConfigurationError(this.name, "No draft is currently selected");
 
     const newDraft = {
       ...currentDraft,
@@ -212,7 +213,7 @@ ${message.textBody ?? message.htmlBody}
 
   async sendCurrentDraft(agent: Agent): Promise<EmailDraft> {
     const currentDraft = this.getCurrentDraft(agent);
-    if (!currentDraft) throw new Error("No draft is currently selected");
+    if (!currentDraft) throw new ConfigurationError(this.name, "No draft is currently selected");
 
     await this.requireActiveEmailProvider(agent).sendDraft(currentDraft.id);
     return currentDraft;

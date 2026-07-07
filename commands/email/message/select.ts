@@ -19,7 +19,7 @@ async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema
   try {
     const box = args.box?.trim() || "inbox";
     const { messages } = await emailService.getMessages({ box, limit: 25 }, agent);
-    if (!messages?.length) return "No messages found.";
+    if (!messages.length) return "No messages found.";
 
     const tree: TreeLeaf[] = messages.map(message => ({
       name: `${message.isRead ? " " : "*"} ${message.subject} (${new Date(message.receivedAt).toLocaleDateString()})`,
@@ -46,8 +46,8 @@ async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema
 
     const message = await emailService.selectMessageById(selection[0], agent);
     return `Selected message: "${message.subject}"`;
-  } catch (error: unknown) {
-    throw new CommandFailedError(`Error during message selection: ${Error.isError(error) ? error.message : String(error)}`);
+  } catch (err) {
+    throw new CommandFailedError(`Error during message selection`, { cause: err });
   }
 }
 
