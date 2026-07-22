@@ -13,14 +13,17 @@ const inputSchema = z.object({
 
 async function execute({ id }: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
   const message = await agent.requireServiceByType(EmailService).selectMessageById(id, agent);
-  return `
+  return {
+    message: `**Email** Selected message ${id}`,
+    result: `
 Selected message: "${message.subject}" (ID: ${message.id})
 From: ${message.from.name ?? message.from.email}
 Received: ${message.receivedAt.toISOString()}
 
 JSON representation:
 ${JSON.stringify(message, null, 2)}
-  `.trim();
+  `.trim(),
+  };
 }
 
 export default {

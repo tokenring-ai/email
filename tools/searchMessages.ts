@@ -18,14 +18,17 @@ const inputSchema = z.object({
 
 async function execute({ query, box, limit, unreadOnly }: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
   const messages = await agent.requireServiceByType(EmailService).searchMessages(stripUndefinedKeys({ query, box, limit, unreadOnly }), agent);
-  return `
+  return {
+    message: `**Email** Searched ${messages.length} for ${query}`,
+    result: `
 Found ${messages.length} messages matching "${query}" in ${box ?? "inbox"}.
 
 ${markdownTable(
   ["ID", "Subject", "From", "Received"],
   messages.map(message => [message.id, message.subject, message.from.name ?? message.from.email, message.receivedAt.toISOString()]),
 )}
-  `.trim();
+  `.trim(),
+  };
 }
 
 export default {

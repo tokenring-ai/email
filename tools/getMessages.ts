@@ -23,7 +23,9 @@ function formatAddress(address: { email: string; name?: string | undefined }): s
 async function execute({ box, limit, unreadOnly, pageToken }: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
   const page = await agent.requireServiceByType(EmailService).getMessages(stripUndefinedKeys({ box, limit, unreadOnly, pageToken }), agent);
   const boxName = box ?? "inbox";
-  return `
+  return {
+    message: `**Email** Retrieved ${page.messages.length} messages from ${boxName}`,
+    result: `
 Here are the ${page.messages.length} most recent messages from ${boxName}.
 
 ${markdownTable(
@@ -31,7 +33,8 @@ ${markdownTable(
   page.messages.map(message => [message.id, formatAddress(message.from), message.subject, message.receivedAt.toISOString(), message.isRead ? "yes" : "no"]),
 )}
 ${page.nextPageToken ? `\n\nNext page token: ${page.nextPageToken}` : ""}
-  `.trim();
+  `.trim(),
+  };
 }
 
 export default {
