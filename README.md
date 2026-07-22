@@ -1033,7 +1033,7 @@ bun build
 | Package      | Version | Purpose       |
 |--------------|---------|---------------|
 | `typescript` | ^6.0.2  | Type checking |
-| `vitest`     | ^4.1.1  | Testing       |
+| `bun test`     | builtin  | Testing framework   |
 
 ## Related Components
 
