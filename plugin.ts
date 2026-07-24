@@ -102,5 +102,5 @@ export default {
       rpcService.registerEndpoint(emailRPC);
     });
   },
-  config: packageConfigSchema,
+  configSchema: packageConfigSchema,
 } satisfies TokenRingPlugin<typeof packageConfigSchema>;
