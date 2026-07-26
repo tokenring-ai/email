@@ -1,6 +1,7 @@
 import type { Agent } from "@tokenring-ai/agent";
 import { AgentStateSlice } from "@tokenring-ai/agent/types";
 import deepClone from "@tokenring-ai/utility/object/deepClone";
+import EnhancedSet from "@tokenring-ai/utility/set/enhancedSet";
 import markdownList from "@tokenring-ai/utility/string/markdownList";
 import { z } from "zod";
 import { type EmailDraft, EmailDraftSchema, type EmailMessage, EmailMessageSchema } from "../EmailProvider.ts";
@@ -21,7 +22,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
   currentEmail: EmailMessage | undefined;
   currentDraft: EmailDraft | undefined;
   watch: z.output<typeof EmailWatchSchema> | undefined;
-  processedEmails = new Set<string>();
+  processedEmails = new EnhancedSet<string>();
   isWatching = false;
 
   constructor(readonly initialConfig: z.output<typeof EmailAgentConfigSchema>) {
@@ -41,7 +42,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
     return {
       activeProvider: this.activeProvider,
       watch: this.watch,
-      processedEmails: Array.from(this.processedEmails),
+      processedEmails: this.processedEmails.valuesArray(),
       currentEmail: this.currentEmail,
       currentDraft: this.currentDraft,
     };
@@ -50,7 +51,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
   deserialize(data: z.output<typeof serializationSchema>): void {
     this.activeProvider = data.activeProvider;
     this.watch = data.watch;
-    this.processedEmails = new Set(data.processedEmails ?? []);
+    this.processedEmails = new EnhancedSet(data.processedEmails);
     this.currentEmail = data.currentEmail;
     this.currentDraft = data.currentDraft;
   }
