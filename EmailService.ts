@@ -17,8 +17,10 @@ import type {
   EmailSearchOptions,
   UpdateDraftEmailData,
 } from "./EmailProvider.ts";
-import { EmailAgentConfigSchema, type EmailConfigSchema, type EmailWatchSchema } from "./schema.ts";
+import { EmailAgentConfigSchema, EmailConfigSchema, type EmailWatchSchema } from "./schema.ts";
 import { EmailState } from "./state/EmailState.ts";
+
+export type ParsedEmailConfig = z.output<typeof EmailConfigSchema>;
 
 function combineEmailAddressAndName({ email, name }: { email: string; name?: string | undefined }) {
   return name ? `${name} <${email}>` : email;
@@ -34,7 +36,15 @@ export default class EmailService implements TokenRingService {
   getAvailableProviders = this.providers.keysArray;
   requireEmailProvider = this.providers.require;
 
-  constructor(readonly options: z.output<typeof EmailConfigSchema>) {}
+  private options: ParsedEmailConfig = EmailConfigSchema.parse({});
+
+  constructor(options?: ParsedEmailConfig) {
+    if (options) this.options = options;
+  }
+
+  reconfigure(options: ParsedEmailConfig): void {
+    this.options = options;
+  }
 
   attach(agent: Agent, creationContext: AgentCreationContext): void {
     const agentConfig = deepClone(this.options.agentDefaults, agent.getAgentConfigSlice("email", EmailAgentConfigSchema));

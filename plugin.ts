@@ -22,9 +22,8 @@ export default {
   displayName: "Email Service",
   version: packageJSON.version,
   description: packageJSON.description,
-  install(app, config) {
-    const service = new EmailService(config.email);
-    app.services.register(service);
+  install(app) {
+    app.addServices(new EmailService());
 
     app.services.waitForItemByType(ScriptingService, (scriptingService: ScriptingService) => {
       scriptingService.registerFunction("getEmailBoxes", {
@@ -101,6 +100,9 @@ export default {
     app.waitForService(RpcService, rpcService => {
       rpcService.registerEndpoint(emailRPC);
     });
+  },
+  reconfigure(app, config) {
+    app.requireService(EmailService).reconfigure(config.email);
   },
   configSchema: packageConfigSchema,
 } satisfies TokenRingPlugin<typeof packageConfigSchema>;
