@@ -22,7 +22,7 @@ async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema
     if (!messages.length) return "No messages found.";
 
     const tree: TreeLeaf[] = messages.map(message => ({
-      name: `${message.isRead ? " " : "*"} ${message.subject} (${new Date(message.receivedAt).toLocaleDateString()})`,
+      name: `${message.isRead ? " " : "*"} ${message.subject} (${message.receivedAt != null ? new Date(message.receivedAt).toLocaleDateString() : "—"})`,
       value: message.id,
     }));
 

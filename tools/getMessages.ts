@@ -30,7 +30,13 @@ Here are the ${page.messages.length} most recent messages from ${boxName}.
 
 ${markdownTable(
   ["ID", "From", "Subject", "Received", "Read"],
-  page.messages.map(message => [message.id, formatAddress(message.from), message.subject, message.receivedAt.toISOString(), message.isRead ? "yes" : "no"]),
+  page.messages.map(message => [
+    message.id,
+    formatAddress(message.from),
+    message.subject,
+    message.receivedAt != null ? new Date(message.receivedAt).toISOString() : "—",
+    message.isRead ? "yes" : "no",
+  ]),
 )}
 ${page.nextPageToken ? `\n\nNext page token: ${page.nextPageToken}` : ""}
   `.trim(),

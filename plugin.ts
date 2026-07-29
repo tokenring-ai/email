@@ -1,13 +1,16 @@
 import { AgentCommandService } from "@tokenring-ai/agent";
 import type { TokenRingPlugin } from "@tokenring-ai/app";
 import { ChatService } from "@tokenring-ai/chat";
+import { AgentLifecycleService } from "@tokenring-ai/lifecycle";
 import { RpcService } from "@tokenring-ai/rpc";
 import { ScriptingService } from "@tokenring-ai/scripting";
 import type { ScriptingThis } from "@tokenring-ai/scripting/ScriptingService";
 import { stripUndefinedKeys } from "@tokenring-ai/utility/object/stripObject";
 import { z } from "zod";
 import commands from "./commands.ts";
+import config from "./config/index.ts";
 import EmailService from "./EmailService.ts";
+import addSelectedEmail from "./hooks/addSelectedEmail.ts";
 import { EmailConfigSchema } from "./index.ts";
 import packageJSON from "./package.json" with { type: "json" };
 import emailRPC from "./rpc/email.ts";
@@ -22,6 +25,7 @@ export default {
   displayName: "Email Service",
   version: packageJSON.version,
   description: packageJSON.description,
+  config,
   install(app) {
     app.addServices(new EmailService());
 
@@ -93,6 +97,8 @@ export default {
         },
       });
     });
+
+    app.waitForService(AgentLifecycleService, lifecycleService => lifecycleService.addHooks(addSelectedEmail));
 
     app.waitForService(ChatService, chatService => chatService.addTools(...tools));
     app.waitForService(AgentCommandService, commandService => commandService.addAgentCommands(commands));

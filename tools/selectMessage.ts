@@ -18,7 +18,7 @@ async function execute({ id }: z.output<typeof inputSchema>, agent: Agent): Prom
     result: `
 Selected message: "${message.subject}" (ID: ${message.id})
 From: ${message.from.name ?? message.from.email}
-Received: ${message.receivedAt.toISOString()}
+Received: ${message.receivedAt != null ? new Date(message.receivedAt).toISOString() : "—"}
 
 JSON representation:
 ${JSON.stringify(message, null, 2)}

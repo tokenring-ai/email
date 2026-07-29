@@ -14,6 +14,8 @@ const serializationSchema = z
     processedEmails: z.array(z.string()).optional(),
     currentEmail: EmailMessageSchema.optional(),
     currentDraft: EmailDraftSchema.optional(),
+    lastAttachedEmailId: z.string().optional(),
+    lastAttachedDraftId: z.string().optional(),
   })
   .prefault({});
 
@@ -24,6 +26,8 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
   watch: z.output<typeof EmailWatchSchema> | undefined;
   processedEmails = new EnhancedSet<string>();
   isWatching = false;
+  lastAttachedEmailId: string | undefined;
+  lastAttachedDraftId: string | undefined;
 
   constructor(readonly initialConfig: z.output<typeof EmailAgentConfigSchema>) {
     super("EmailState", serializationSchema);
@@ -45,6 +49,8 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
       processedEmails: this.processedEmails.valuesArray(),
       currentEmail: this.currentEmail,
       currentDraft: this.currentDraft,
+      lastAttachedEmailId: this.lastAttachedEmailId,
+      lastAttachedDraftId: this.lastAttachedDraftId,
     };
   }
 
@@ -54,12 +60,20 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
     this.processedEmails = new EnhancedSet(data.processedEmails);
     this.currentEmail = data.currentEmail;
     this.currentDraft = data.currentDraft;
+    this.lastAttachedEmailId = data.lastAttachedEmailId;
+    this.lastAttachedDraftId = data.lastAttachedDraftId;
   }
 
   show(): string {
     const watchLines =
       (this.watch?.actions.length ?? 0) > 0 ? this.watch!.actions.map(val => `Pattern: ${val.pattern}, Command: ${val.command}`) : ["No watches configured"];
     return `Active Email Provider: ${this.activeProvider}
+    Current Email: ${this.currentEmail ? `${this.currentEmail.subject} (${this.currentEmail.from.email})` : "None"}
+    Current Draft: ${this.currentDraft ? `${this.currentDraft.subject} (${this.currentDraft.to.map(t => t.email).join(", ")})` : "None"}
+    Last Attached Email ID: ${this.lastAttachedEmailId}
+    Last Attached Draft ID: ${this.lastAttachedDraftId}
+    Processed Emails: ${this.processedEmails.join(", ") || "None"}
+    Watching: ${this.isWatching ? "Yes" : "No"}
 Watches:
 ${markdownList(watchLines)}`;
   }

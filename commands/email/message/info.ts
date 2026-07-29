@@ -14,7 +14,7 @@ function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
     `Subject: ${currentMessage.subject}`,
     `From: ${currentMessage.from.name ?? currentMessage.from.email}`,
     `To: ${currentMessage.to.map(address => address.name ?? address.email).join(", ")}`,
-    `Received: ${new Date(currentMessage.receivedAt).toLocaleString()}`,
+    `Received: ${currentMessage.receivedAt != null ? new Date(currentMessage.receivedAt).toLocaleString() : "—"}`,
     `Read: ${currentMessage.isRead ? "yes" : "no"}`,
   ];
 

@@ -19,8 +19,8 @@ export const EmailMessageSchema = z.object({
   htmlBody: z.string().exactOptional(),
   labels: z.array(z.string()).exactOptional(),
   isRead: z.boolean(),
-  receivedAt: z.coerce.date(),
-  sentAt: z.coerce.date().exactOptional(),
+  receivedAt: z.number().exactOptional(),
+  sentAt: z.number().exactOptional(),
 });
 
 export const EmailDraftSchema = z.object({
@@ -32,8 +32,8 @@ export const EmailDraftSchema = z.object({
   bcc: z.array(EmailAddressSchema).exactOptional(),
   textBody: z.string().exactOptional(),
   htmlBody: z.string().exactOptional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
 });
 
 export const EmailBoxSchema = z.object({

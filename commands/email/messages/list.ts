@@ -42,7 +42,12 @@ Messages in ${box}:
 
 ${markdownTable(
   ["ID", "From", "Subject", "Received"],
-  page.messages.map(message => [message.id, message.from.name ?? message.from.email, message.subject, message.receivedAt.toLocaleString()]),
+  page.messages.map(message => [
+    message.id,
+    message.from.name ?? message.from.email,
+    message.subject,
+    message.receivedAt != null ? new Date(message.receivedAt).toLocaleString() : "—",
+  ]),
 )}
 ${page.nextPageToken ? `\n\nNext page token: ${page.nextPageToken}` : ""}
   `.trim();

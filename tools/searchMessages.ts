@@ -25,7 +25,12 @@ Found ${messages.length} messages matching "${query}" in ${box ?? "inbox"}.
 
 ${markdownTable(
   ["ID", "Subject", "From", "Received"],
-  messages.map(message => [message.id, message.subject, message.from.name ?? message.from.email, message.receivedAt.toISOString()]),
+  messages.map(message => [
+    message.id,
+    message.subject,
+    message.from.name ?? message.from.email,
+    message.receivedAt != null ? new Date(message.receivedAt).toISOString() : "—",
+  ]),
 )}
   `.trim(),
   };

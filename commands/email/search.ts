@@ -25,7 +25,12 @@ Search results for "${query}" in ${box}:
 
 ${markdownTable(
   ["ID", "Subject", "From", "Received"],
-  messages.map(message => [message.id, message.subject, message.from.name ?? message.from.email, message.receivedAt.toLocaleString()]),
+  messages.map(message => [
+    message.id,
+    message.subject,
+    message.from.name ?? message.from.email,
+    message.receivedAt != null ? new Date(message.receivedAt).toLocaleString() : "—",
+  ]),
 )}
   `.trim();
 }

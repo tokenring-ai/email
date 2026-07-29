@@ -19,12 +19,10 @@ import type {
 } from "./EmailProvider.ts";
 import { EmailAgentConfigSchema, EmailConfigSchema, type EmailWatchSchema } from "./schema.ts";
 import { EmailState } from "./state/EmailState.ts";
+import { combineEmailAddressAndName } from "./util/emailAddress.ts";
+import { emailToRFC822 } from "./util/emailToRFC822.ts";
 
 export type ParsedEmailConfig = z.output<typeof EmailConfigSchema>;
-
-function combineEmailAddressAndName({ email, name }: { email: string; name?: string | undefined }) {
-  return name ? `${name} <${email}>` : email;
-}
 
 export default class EmailService implements TokenRingService {
   readonly name = "EmailService";
@@ -33,6 +31,7 @@ export default class EmailService implements TokenRingService {
   private providers = new KeyedRegistry<EmailProvider>();
 
   registerEmailProvider = this.providers.set;
+  unregisterEmailProvider = this.providers.unregister;
   getAvailableProviders = this.providers.keysArray;
   requireEmailProvider = this.providers.require;
 
@@ -104,14 +103,7 @@ export default class EmailService implements TokenRingService {
 
     for (const message of messagesToProcess) {
       if (message.textBody || message.htmlBody) {
-        const body = `
-From: ${combineEmailAddressAndName(message.from)}
-To: ${message.to.map(combineEmailAddressAndName).join(", ")}
-Received At: ${message.receivedAt.toISOString()}
-Subject: ${message.subject}
-
-${message.textBody ?? message.htmlBody} 
-`.trim();
+        const body = emailToRFC822(message);
 
         for (const action of actions) {
           const pattern = new RegExp(action.pattern, "is");
