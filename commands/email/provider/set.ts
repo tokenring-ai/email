@@ -13,9 +13,9 @@ const inputSchema = {
   ],
 } as const satisfies AgentCommandInputSchema;
 
-function execute({ positionals, agent }: AgentCommandInputType<typeof inputSchema>): string {
-  const emailService = agent.requireServiceByType(EmailService);
-  const providerName = positionals.name.trim();
+function execute({ args, agent }: AgentCommandInputType<typeof inputSchema>): string {
+  const emailService = agent.requireService(EmailService);
+  const providerName = args.name.trim();
   if (!providerName) throw new CommandFailedError("Usage: /email provider set <name>");
   const available = emailService.getAvailableProviders();
   if (available.includes(providerName)) {

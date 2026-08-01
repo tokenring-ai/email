@@ -10,7 +10,7 @@ const description = "Send the currently selected email draft";
 const inputSchema = z.object({});
 
 async function execute(_input: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
-  const sent = await agent.requireServiceByType(EmailService).sendCurrentDraft(agent);
+  const sent = await agent.requireService(EmailService).sendCurrentDraft(agent);
   agent.infoMessage(`[${name}] Email sent: ${sent.id}`);
   return {
     message: `**Email** Sent current draft`,

@@ -12,7 +12,7 @@ const inputSchema = {
 } as const satisfies AgentCommandInputSchema;
 
 async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const message = await agent.requireServiceByType(EmailService).selectMessageById(args.id, agent);
+  const message = await agent.requireService(EmailService).selectMessageById(args.id, agent);
   return `Selected message: ${message.subject}`;
 }
 

@@ -14,7 +14,7 @@ const inputSchema = {
 } as const satisfies AgentCommandInputSchema;
 
 async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const emailService = agent.requireServiceByType(EmailService);
+  const emailService = agent.requireService(EmailService);
 
   try {
     const box = args.box?.trim() || "inbox";

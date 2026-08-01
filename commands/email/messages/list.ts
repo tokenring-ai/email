@@ -29,7 +29,7 @@ async function execute({ args, agent }: AgentCommandInputType<typeof inputSchema
   const limit = args.limit ?? 20;
   if (!Number.isFinite(limit) || limit <= 0) throw new CommandFailedError("Usage: /email messages list --box <box> --limit <limit>");
 
-  const page = await agent.requireServiceByType(EmailService).getMessages(
+  const page = await agent.requireService(EmailService).getMessages(
     stripUndefinedKeys({
       box,
       limit,

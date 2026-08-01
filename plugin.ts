@@ -27,14 +27,14 @@ export default {
   description: packageJSON.description,
   config,
   install(app) {
-    app.addServices(new EmailService());
+    app.addService(new EmailService());
 
     app.services.waitForItemByType(ScriptingService, (scriptingService: ScriptingService) => {
       scriptingService.registerFunction("getEmailBoxes", {
         type: "native",
         params: [],
         async execute(this: ScriptingThis): Promise<string> {
-          const boxes = await this.agent.requireServiceByType(EmailService).getBoxes(this.agent);
+          const boxes = await this.agent.requireService(EmailService).getBoxes(this.agent);
           return JSON.stringify(boxes);
         },
       });
@@ -44,7 +44,7 @@ export default {
         params: ["box", "limit", "pageToken", "unreadOnly"],
         async execute(this: ScriptingThis, box?: string, limit?: string, pageToken?: string, unreadOnly?: string): Promise<string> {
           const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
-          const page = await this.agent.requireServiceByType(EmailService).getMessages(
+          const page = await this.agent.requireService(EmailService).getMessages(
             stripUndefinedKeys({
               box: box?.trim() || undefined,
               limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
@@ -62,7 +62,7 @@ export default {
         params: ["query", "box", "limit", "unreadOnly"],
         async execute(this: ScriptingThis, query: string, box?: string, limit?: string, unreadOnly?: string): Promise<string> {
           const parsedLimit = limit ? Number.parseInt(limit, 10) : undefined;
-          const messages = await this.agent.requireServiceByType(EmailService).searchMessages(
+          const messages = await this.agent.requireService(EmailService).searchMessages(
             stripUndefinedKeys({
               query,
               box: box?.trim() || undefined,
@@ -83,7 +83,7 @@ export default {
             .split(",")
             .map(email => ({ email: email.trim() }))
             .filter(address => address.email.length > 0);
-          const draft = await this.agent.requireServiceByType(EmailService).createDraft({ subject, textBody: bodyText, to }, this.agent);
+          const draft = await this.agent.requireService(EmailService).createDraft({ subject, textBody: bodyText, to }, this.agent);
           return `Created draft: ${draft.id}`;
         },
       });
@@ -92,7 +92,7 @@ export default {
         type: "native",
         params: [],
         async execute(this: ScriptingThis): Promise<string> {
-          const sent = await this.agent.requireServiceByType(EmailService).sendCurrentDraft(this.agent);
+          const sent = await this.agent.requireService(EmailService).sendCurrentDraft(this.agent);
           return `Sent email: ${sent.id}`;
         },
       });
@@ -100,7 +100,7 @@ export default {
 
     app.waitForService(AgentLifecycleService, lifecycleService => lifecycleService.addHooks(addSelectedEmail));
 
-    app.waitForService(ChatService, chatService => chatService.addTools(...tools));
+    app.waitForService(ChatService, chatService => chatService.addTools(tools));
     app.waitForService(AgentCommandService, commandService => commandService.addAgentCommands(commands));
 
     app.waitForService(RpcService, rpcService => {

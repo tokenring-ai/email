@@ -4,7 +4,7 @@ import EmailService from "../../../EmailService.ts";
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 function execute({ agent }: AgentCommandInputType<typeof inputSchema>) {
-  agent.requireServiceByType(EmailService).clearCurrentDraft(agent);
+  agent.requireService(EmailService).clearCurrentDraft(agent);
   return "Draft cleared. No email draft is currently selected.";
 }
 

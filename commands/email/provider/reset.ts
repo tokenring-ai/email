@@ -8,7 +8,7 @@ const inputSchema = {} as const satisfies AgentCommandInputSchema;
 function execute({ agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
   const initialProvider = agent.getState(EmailState).initialConfig.provider;
   if (!initialProvider) throw new CommandFailedError("No initial provider configured");
-  agent.requireServiceByType(EmailService).setActiveProvider(initialProvider, agent);
+  agent.requireService(EmailService).setActiveProvider(initialProvider, agent);
   return Promise.resolve(`Provider reset to ${initialProvider}`);
 }
 

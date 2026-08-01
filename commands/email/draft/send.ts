@@ -4,7 +4,7 @@ import EmailService from "../../../EmailService.ts";
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({ agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const sent = await agent.requireServiceByType(EmailService).sendCurrentDraft(agent);
+  const sent = await agent.requireService(EmailService).sendCurrentDraft(agent);
   return `Sent email "${sent.subject}" to ${sent.to.map(address => address.name ?? address.email).join(", ")}`;
 }
 

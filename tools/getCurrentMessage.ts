@@ -10,7 +10,7 @@ const description = "Retrieve the currently selected email message";
 const inputSchema = z.object({});
 
 function execute(_input: z.output<typeof inputSchema>, agent: Agent): TokenRingToolResult {
-  const message = agent.requireServiceByType(EmailService).getCurrentMessage(agent);
+  const message = agent.requireService(EmailService).getCurrentMessage(agent);
   return {
     message: `**Email** Retrieved current message`,
     result: message ? JSON.stringify(message) : "No email message is currently selected.",

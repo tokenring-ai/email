@@ -21,7 +21,7 @@ function formatAddress(address: { email: string; name?: string | undefined }): s
 }
 
 async function execute({ box, limit, unreadOnly, pageToken }: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
-  const page = await agent.requireServiceByType(EmailService).getMessages(stripUndefinedKeys({ box, limit, unreadOnly, pageToken }), agent);
+  const page = await agent.requireService(EmailService).getMessages(stripUndefinedKeys({ box, limit, unreadOnly, pageToken }), agent);
   const boxName = box ?? "inbox";
   return {
     message: `**Email** Retrieved ${page.messages.length} messages from ${boxName}`,

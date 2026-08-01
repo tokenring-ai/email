@@ -10,7 +10,7 @@ const description = "Retrieve the currently selected email draft";
 const inputSchema = z.object({});
 
 function execute(_input: z.output<typeof inputSchema>, agent: Agent): TokenRingToolResult {
-  const draft = agent.requireServiceByType(EmailService).getCurrentDraft(agent);
+  const draft = agent.requireService(EmailService).getCurrentDraft(agent);
   return {
     message: `**Email** Retrieved current draft`,
     result: draft ? JSON.stringify(draft) : "No email draft is currently selected.",

@@ -4,7 +4,7 @@ import EmailService from "../../../EmailService.ts";
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 function execute({ agent }: AgentCommandInputType<typeof inputSchema>) {
-  agent.requireServiceByType(EmailService).clearCurrentMessage(agent);
+  agent.requireService(EmailService).clearCurrentMessage(agent);
   return "Message cleared. No email message is currently selected.";
 }
 

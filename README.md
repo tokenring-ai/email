@@ -885,7 +885,7 @@ app.usePlugin(EmailPlugin, {
 import { EmailService } from "@tokenring-ai/email";
 
 // Get the service from an agent
-const emailService = agent.requireServiceByType(EmailService);
+const emailService = agent.requireService(EmailService);
 
 // List inbox messages
 const messages = await emailService.getMessages(

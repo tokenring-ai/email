@@ -5,7 +5,7 @@ import { EmailState } from "../../../state/EmailState.ts";
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 function execute({ agent }: AgentCommandInputType<typeof inputSchema>): string {
-  const emailService = agent.requireServiceByType(EmailService);
+  const emailService = agent.requireService(EmailService);
   const currentMessage = emailService.getCurrentMessage(agent);
   if (!currentMessage) return "No email message is currently selected.\nUse /email message select to choose a message.";
 

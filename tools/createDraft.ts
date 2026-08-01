@@ -23,7 +23,7 @@ const inputSchema = z.object({
 });
 
 async function execute(input: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
-  const draft = await agent.requireServiceByType(EmailService).createDraft(input, agent);
+  const draft = await agent.requireService(EmailService).createDraft(input, agent);
   return {
     message: `**Email** Created draft ${input.subject}`,
     result: JSON.stringify(draft),

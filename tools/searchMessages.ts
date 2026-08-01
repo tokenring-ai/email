@@ -17,7 +17,7 @@ const inputSchema = z.object({
 });
 
 async function execute({ query, box, limit, unreadOnly }: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
-  const messages = await agent.requireServiceByType(EmailService).searchMessages(stripUndefinedKeys({ query, box, limit, unreadOnly }), agent);
+  const messages = await agent.requireService(EmailService).searchMessages(stripUndefinedKeys({ query, box, limit, unreadOnly }), agent);
   return {
     message: `**Email** Searched ${messages.length} for ${query}`,
     result: `

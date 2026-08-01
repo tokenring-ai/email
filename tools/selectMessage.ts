@@ -12,7 +12,7 @@ const inputSchema = z.object({
 });
 
 async function execute({ id }: z.output<typeof inputSchema>, agent: Agent): Promise<TokenRingToolResult> {
-  const message = await agent.requireServiceByType(EmailService).selectMessageById(id, agent);
+  const message = await agent.requireService(EmailService).selectMessageById(id, agent);
   return {
     message: `**Email** Selected message ${id}`,
     result: `

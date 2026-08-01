@@ -6,7 +6,7 @@ import { EmailState } from "../../../state/EmailState.ts";
 const inputSchema = {} as const satisfies AgentCommandInputSchema;
 
 async function execute({ agent }: AgentCommandInputType<typeof inputSchema>): Promise<string> {
-  const emailService = agent.requireServiceByType(EmailService);
+  const emailService = agent.requireService(EmailService);
   const available = emailService.getAvailableProviders();
   if (available.length === 0) return "No email providers are registered.";
   if (available.length === 1 && available[0]) {

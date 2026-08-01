@@ -19,7 +19,7 @@ async function execute({ args, remainder, agent }: AgentCommandInputType<typeof 
   if (!query) throw new CommandFailedError("Usage: /email search <query>");
 
   const box = args.box?.trim() || "inbox";
-  const messages = await agent.requireServiceByType(EmailService).searchMessages({ query, box }, agent);
+  const messages = await agent.requireService(EmailService).searchMessages({ query, box }, agent);
   return `
 Search results for "${query}" in ${box}:
 
