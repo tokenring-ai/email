@@ -37,9 +37,14 @@ export const EmailConfigSchema = z
   .object({
     pollInterval: z
       .number()
+      .positive()
       .default(60)
       .meta({ unit: "s", advanced: true, description: "How often mailboxes are polled" } satisfies ConfigFieldMeta)
       .transform(seconds => seconds * 1000),
     agentDefaults: EmailAgentConfigSchema.prefault({}).meta({ label: "Agent Defaults" } satisfies ConfigFieldMeta),
+    agentTypes: z
+      .array(z.string())
+      .default(["email"])
+      .meta({ description: "The available agent types that can be used to process emails" } satisfies ConfigFieldMeta),
   })
   .meta({ label: "Email", description: "Email integration and mailbox-watching settings" } satisfies ConfigFieldMeta);

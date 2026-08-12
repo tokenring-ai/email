@@ -8,7 +8,7 @@ const displayName = "Email/updateDraft";
 const description = "Update the currently selected email draft";
 
 const addressSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   name: z.string().exactOptional(),
 });
 

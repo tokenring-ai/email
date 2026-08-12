@@ -31,5 +31,5 @@ agents:
         - todo
         - file_*
     lifecycle:
-      enabledHooks:
+      enabledHooks+:
         - addSelectedEmail

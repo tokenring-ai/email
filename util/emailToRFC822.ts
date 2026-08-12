@@ -71,6 +71,12 @@ export function rfc822ToEmail(raw: string): EmailMessage {
     }
   }
 
+  // Prefer a Received header timestamp when present; otherwise fall back to Date/sentAt.
+  let receivedAt: number | undefined = parseReceivedHeaderDate(headers.received);
+  if (receivedAt === undefined && sentAt !== undefined) {
+    receivedAt = sentAt;
+  }
+
   return {
     id,
     ...(threadId ? { threadId } : {}),
@@ -82,7 +88,17 @@ export function rfc822ToEmail(raw: string): EmailMessage {
     textBody: body,
     isRead: true,
     ...(sentAt !== undefined ? { sentAt } : {}),
+    ...(receivedAt !== undefined ? { receivedAt } : {}),
   };
+}
+
+/** Parse the date portion of an RFC 5322 Received header (text after the last ';'). */
+function parseReceivedHeaderDate(received?: string): number | undefined {
+  if (!received) return undefined;
+  const semicolonIdx = received.lastIndexOf(";");
+  if (semicolonIdx === -1) return undefined;
+  const parsedDate = Date.parse(received.slice(semicolonIdx + 1).trim());
+  return Number.isNaN(parsedDate) ? undefined : parsedDate;
 }
 
 export function draftToRFC822(draft: EmailDraft): string {

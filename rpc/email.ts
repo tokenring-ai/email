@@ -7,11 +7,12 @@ import { EmailState } from "../state/EmailState.ts";
 import EmailRpcSchema from "./schema.ts";
 
 export default createRPCEndpoint(EmailRpcSchema, {
-  getEmailProviders(_args, app: TokenRingApp) {
+  getEmailConfiguration(_args, app: TokenRingApp) {
     const emailService = app.requireService(EmailService);
 
     return {
       providers: emailService.getAvailableProviders(),
+      agentTypes: emailService.getAgentTypes(),
     };
   },
 

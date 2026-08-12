@@ -7,11 +7,12 @@ export default {
   name: "Email RPC",
   path: "/rpc/email",
   methods: {
-    getEmailProviders: {
+    getEmailConfiguration: {
       type: "query",
       input: z.object({}),
       result: z.object({
         providers: z.array(z.string()),
+        agentTypes: z.array(z.string()),
       }),
     },
     getEmailBoxes: {

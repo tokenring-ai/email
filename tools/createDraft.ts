@@ -8,7 +8,7 @@ const displayName = "Email/createDraft";
 const description = "Create a new email draft";
 
 const addressSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   name: z.string().exactOptional(),
 });
 

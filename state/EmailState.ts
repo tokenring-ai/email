@@ -16,6 +16,7 @@ const serializationSchema = z
     currentDraft: EmailDraftSchema.optional(),
     lastAttachedEmailId: z.string().optional(),
     lastAttachedDraftId: z.string().optional(),
+    isWatching: z.boolean().optional(),
   })
   .prefault({});
 
@@ -51,6 +52,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
       currentDraft: this.currentDraft,
       lastAttachedEmailId: this.lastAttachedEmailId,
       lastAttachedDraftId: this.lastAttachedDraftId,
+      isWatching: this.isWatching,
     };
   }
 
@@ -62,6 +64,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
     this.currentDraft = data.currentDraft;
     this.lastAttachedEmailId = data.lastAttachedEmailId;
     this.lastAttachedDraftId = data.lastAttachedDraftId;
+    this.isWatching = data.isWatching ?? false;
   }
 
   show(): string {

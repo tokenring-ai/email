@@ -89,4 +89,6 @@ export interface EmailProvider {
   updateDraft(data: UpdateDraftEmailData): Promise<EmailDraft>;
 
   sendDraft(id: string): Promise<void>;
+
+  markAsRead(id: string): Promise<void>;
 }

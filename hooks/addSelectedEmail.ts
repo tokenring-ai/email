@@ -1,4 +1,4 @@
-import { AfterInputReceived } from "@tokenring-ai/agent";
+import { BeforeInputReceived } from "@tokenring-ai/agent";
 import type Agent from "@tokenring-ai/agent/Agent";
 import type { HookSubscription } from "@tokenring-ai/lifecycle/types";
 import { HookCallback } from "@tokenring-ai/lifecycle/util/hooks";
@@ -9,14 +9,13 @@ const name = "addSelectedEmail";
 const displayName = "Email/Add currently selected email to chat";
 const description = "Attaches the currently selected email to the chat message";
 
-async function addSelectedEmail(data: AfterInputReceived, agent: Agent) {
+async function addSelectedEmail(data: BeforeInputReceived, agent: Agent) {
   const attachments = (data.input.attachments ??= []);
   agent.mutateState(EmailState, state => {
     if (state.currentEmail && state.lastAttachedEmailId !== state.currentEmail.id) {
-      state.lastAttachedEmailId = state.currentEmail.id;
       attachments.push({
         name: state.currentEmail.subject,
-        description: "The email below is is the currently selected email.",
+        description: "The email below is the currently selected email.",
         encoding: "text",
         mimeType: "message/rfc822",
         body: emailToRFC822(state.currentEmail),
@@ -25,7 +24,6 @@ async function addSelectedEmail(data: AfterInputReceived, agent: Agent) {
     }
 
     if (state.currentDraft && state.lastAttachedDraftId !== state.currentDraft.id) {
-      state.lastAttachedDraftId = state.currentDraft.id;
       attachments.push({
         name: `Draft: ${state.currentDraft.subject || "Untitled"}`,
         description: "The email below is the currently selected draft.",
@@ -38,7 +36,7 @@ async function addSelectedEmail(data: AfterInputReceived, agent: Agent) {
   });
 }
 
-const callbacks = [new HookCallback(AfterInputReceived, addSelectedEmail)];
+const callbacks = [new HookCallback(BeforeInputReceived, addSelectedEmail)];
 
 export default {
   name,

@@ -475,13 +475,13 @@ The package exposes 10 RPC methods at `/rpc/email`:
 
 ### Query Methods
 
-#### `getEmailProviders`
+#### `getEmailConfiguration`
 
-Get list of available email providers.
+Get email configuration: available providers and agent types that can process email.
 
 **Input**: `{}`
 
-**Output**: `{ providers: string[] }`
+**Output**: `{ providers: string[], agentTypes: string[] }`
 
 #### `getEmailBoxes`
 

@@ -45,12 +45,25 @@ export default class EmailService implements TokenRingService {
     this.options = options;
   }
 
+  /** Agent types configured for email processing (from EmailConfigSchema.agentTypes). */
+  getAgentTypes(): string[] {
+    return [...this.options.agentTypes];
+  }
+
   attach(agent: Agent, creationContext: AgentCreationContext): void {
     const agentConfig = deepClone(this.options.agentDefaults, agent.getAgentConfigSlice("email", EmailAgentConfigSchema));
     const initialState = agent.initializeState(EmailState, agentConfig);
     creationContext.items.push(`Email provider: ${initialState.activeProvider ?? "(none)"}`);
 
-    if (agentConfig.watch) {
+    // Background tasks do not survive serialization. If watch config is present or the
+    // agent was watching when state was saved, start a fresh watch loop.
+    const resumeWatching = initialState.isWatching;
+    if (resumeWatching) {
+      agent.mutateState(EmailState, state => {
+        state.isWatching = false;
+      });
+    }
+    if (agentConfig.watch || resumeWatching) {
       this.watchEmails(agent);
     }
   }
@@ -81,33 +94,40 @@ export default class EmailService implements TokenRingService {
     });
   }
 
-  async checkForNewEmails({ unreadOnly, maxEmailsToConsider, actions }: z.output<typeof EmailWatchSchema>, agent: Agent): Promise<void> {
+  async checkForNewEmails({ unreadOnly, maxEmailsToConsider, actions, markAsRead }: z.output<typeof EmailWatchSchema>, agent: Agent): Promise<void> {
     const provider = this.requireActiveEmailProvider(agent);
     const { messages } = await provider.getMessages({
       box: "inbox",
       limit: maxEmailsToConsider,
       unreadOnly,
     });
+    const signal = agent.getAbortSignal();
     const messagesToProcess = agent.mutateState(EmailState, state => {
-      const messagesToProcess: EmailMessage[] = [];
+      const toProcess: EmailMessage[] = [];
       for (const message of messages) {
+        if (signal.aborted) break;
+
         if (!state.processedEmails.has(message.id)) {
           if (!unreadOnly || !message.isRead) {
-            messagesToProcess.push(message);
+            toProcess.push(message);
             state.processedEmails.add(message.id);
           }
         }
       }
-      return messagesToProcess;
+      return toProcess;
     });
 
     for (const message of messagesToProcess) {
+      if (signal.aborted) break;
+
       if (message.textBody || message.htmlBody) {
         const body = emailToRFC822(message);
+        let matched = false;
 
         for (const action of actions) {
           const pattern = new RegExp(action.pattern, "is");
           if (pattern.test(body)) {
+            matched = true;
             const fromString = combineEmailAddressAndName(message.from);
             agent.handleInput({
               from: `Email from ${fromString}`,
@@ -127,6 +147,10 @@ export default class EmailService implements TokenRingService {
               ],
             });
           }
+        }
+
+        if (matched && markAsRead) {
+          await provider.markAsRead(message.id);
         }
       }
     }
