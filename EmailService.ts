@@ -4,6 +4,7 @@ import type { AgentCreationContext } from "@tokenring-ai/agent/types";
 import type { TokenRingService } from "@tokenring-ai/app/types";
 import { ConfigurationError } from "@tokenring-ai/app/types";
 import deepClone from "@tokenring-ai/utility/object/deepClone";
+import { stripUndefinedKeys } from "@tokenring-ai/utility/object/stripObject";
 import KeyedRegistry from "@tokenring-ai/utility/registry/KeyedRegistry";
 import type { z } from "zod";
 import type {
@@ -129,11 +130,9 @@ export default class EmailService implements TokenRingService {
           if (pattern.test(body)) {
             matched = true;
             const fromString = combineEmailAddressAndName(message.from);
-            agent.handleInput({
-              from: `Email from ${fromString}`,
-              message: `/message set --id ${message.id}`,
+            agent.mutateState(EmailState, state => {
+              state.currentEmail = message;
             });
-
             agent.handleInput({
               message: action.command,
               from: `Email from ${fromString}`,
@@ -216,15 +215,22 @@ export default class EmailService implements TokenRingService {
     return draft;
   }
 
-  updateDraft(data: UpdateDraftEmailData, agent: Agent): Promise<EmailDraft> {
+  async updateDraft(data: UpdateDraftEmailData, agent: Agent): Promise<EmailDraft> {
     const currentDraft = this.getCurrentDraft(agent);
     if (!currentDraft) throw new ConfigurationError(this.name, "No draft is currently selected");
 
     const newDraft = {
       ...currentDraft,
-      ...data,
+      ...stripUndefinedKeys(data),
     };
-    return this.requireActiveEmailProvider(agent).updateDraft(newDraft);
+    const draft = await this.requireActiveEmailProvider(agent).updateDraft(newDraft);
+    agent.mutateState(EmailState, state => {
+      state.currentDraft = draft;
+      if (state.lastAttachedDraftId === draft.id) {
+        state.lastAttachedDraftId = undefined;
+      }
+    });
+    return draft;
   }
 
   getCurrentDraft(agent: Agent): EmailDraft | undefined {

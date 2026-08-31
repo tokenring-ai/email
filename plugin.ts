@@ -27,9 +27,9 @@ export default {
   description: packageJSON.description,
   config,
   install(app) {
-    app.addService(new EmailService());
+    app.addService(EmailService, new EmailService());
 
-    app.services.waitForItemByType(ScriptingService, (scriptingService: ScriptingService) => {
+    app.waitForService(ScriptingService, (scriptingService: ScriptingService) => {
       scriptingService.registerFunction("getEmailBoxes", {
         type: "native",
         params: [],
@@ -49,7 +49,7 @@ export default {
               box: box?.trim() || undefined,
               limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
               pageToken: pageToken?.trim() || undefined,
-              unreadOnly: unreadOnly === undefined ? undefined : unreadOnly.toLowerCase() === "true",
+              unreadOnly: unreadOnly?.trim() ? unreadOnly.trim().toLowerCase() === "true" : undefined,
             }),
             this.agent,
           );
@@ -67,7 +67,7 @@ export default {
               query,
               box: box?.trim() || undefined,
               limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
-              unreadOnly: unreadOnly === undefined ? undefined : unreadOnly.toLowerCase() === "true",
+              unreadOnly: unreadOnly?.trim() ? unreadOnly.trim().toLowerCase() === "true" : undefined,
             }),
             this.agent,
           );
@@ -81,8 +81,14 @@ export default {
         async execute(this: ScriptingThis, subject: string, bodyText: string, toCsv: string): Promise<string> {
           const to = toCsv
             .split(",")
-            .map(email => ({ email: email.trim() }))
-            .filter(address => address.email.length > 0);
+            .map(email => email.trim())
+            .filter(email => email.length > 0)
+            .map(email => {
+              if (!z.email().safeParse(email).success) {
+                throw new Error(`Invalid email address: ${email}`);
+              }
+              return { email };
+            });
           const draft = await this.agent.requireService(EmailService).createDraft({ subject, textBody: bodyText, to }, this.agent);
           return `Created draft: ${draft.id}`;
         },

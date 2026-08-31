@@ -136,7 +136,7 @@ export default {
       input: z.object({
         agentId: z.string(),
         selectedProvider: z.string().exactOptional(),
-        selectedMessageId: z.string().exactOptional(),
+        selectedMessageId: z.string().nullable().exactOptional(),
       }),
       result: z.discriminatedUnion("status", [
         SuccessSchema.extend({

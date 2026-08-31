@@ -159,8 +159,12 @@ export default createRPCEndpoint(EmailRpcSchema, {
       emailService.setActiveProvider(args.selectedProvider, agent);
     }
 
-    if (args.selectedMessageId) {
-      await emailService.selectMessageById(args.selectedMessageId, agent);
+    if (args.selectedMessageId !== undefined) {
+      if (args.selectedMessageId) {
+        await emailService.selectMessageById(args.selectedMessageId, agent);
+      } else {
+        emailService.clearCurrentMessage(agent);
+      }
     }
 
     const state = agent.getState(EmailState);

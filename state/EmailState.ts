@@ -41,6 +41,9 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
     this.activeProvider ??= parentState.activeProvider;
     this.currentEmail ??= deepClone(parentState.currentEmail);
     this.currentDraft ??= deepClone(parentState.currentDraft);
+    if (this.processedEmails.size === 0 && parentState.processedEmails.size > 0) {
+      this.processedEmails = parentState.processedEmails.clone();
+    }
   }
 
   serialize(): z.output<typeof serializationSchema> {
@@ -59,7 +62,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
   deserialize(data: z.output<typeof serializationSchema>): void {
     this.activeProvider = data.activeProvider;
     this.watch = data.watch;
-    this.processedEmails = new EnhancedSet(data.processedEmails);
+    this.processedEmails = new EnhancedSet(data.processedEmails ?? []);
     this.currentEmail = data.currentEmail;
     this.currentDraft = data.currentDraft;
     this.lastAttachedEmailId = data.lastAttachedEmailId;
@@ -69,7 +72,9 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
 
   show(): string {
     const watchLines =
-      (this.watch?.actions.length ?? 0) > 0 ? this.watch!.actions.map(val => `Pattern: ${val.pattern}, Command: ${val.command}`) : ["No watches configured"];
+      !this.watch || this.watch.actions.length === 0
+        ? ["No watches configured"]
+        : this.watch.actions.map(val => `Pattern: ${val.pattern}, Command: ${val.command}`);
     return `Active Email Provider: ${this.activeProvider}
     Current Email: ${this.currentEmail ? `${this.currentEmail.subject} (${this.currentEmail.from.email})` : "None"}
     Current Draft: ${this.currentDraft ? `${this.currentDraft.subject} (${this.currentDraft.to.map(t => t.email).join(", ")})` : "None"}
