@@ -1,0 +1,139 @@
+import type { EmailMessage } from "@tokenring-ai/email";
+import { Bot, Clock, Forward, Mail, Reply, ReplyAll } from "lucide-react";
+import DetailViewerArea from "@tokenring-ai/one-frontend/components/ui/DetailViewerArea.tsx";
+import KeyValueMetadata from "@tokenring-ai/one-frontend/components/ui/KeyValueMetadata.tsx";
+import TagChip from "@tokenring-ai/one-frontend/components/ui/TagChip.tsx";
+import { sanitizeEmailHtml } from "@tokenring-ai/one-frontend/lib/sanitizeHtml.ts";
+import { useEmailMessage } from "@tokenring-ai/one-frontend/rpc.ts";
+import type { ComposeMode } from "../types.ts";
+import { formatAddress, formatAddressList, messageTimestamp, senderName } from "../utils.ts";
+
+export default function MessageViewer({
+  provider,
+  messageId,
+  onReply,
+  onCompose,
+}: {
+  provider: string;
+  messageId: string;
+  onReply: (cmd: string) => void;
+  onCompose: (mode: Exclude<ComposeMode, "compose">, message: EmailMessage) => void;
+}) {
+  const { data, isLoading, error, mutate } = useEmailMessage(provider, messageId);
+  const msg = data?.email ?? null;
+
+  return (
+    <DetailViewerArea
+      ready
+      hasSelection
+      data={msg}
+      loading={isLoading}
+      {...(error != null ? { error } : !isLoading && !msg ? { error: new Error("Could not load message.") } : {})}
+      loadingMessage="Loading message…"
+      errorTitle="Could not load message"
+      onRetry={() => void mutate()}
+      emptyState={{
+        icon: Mail,
+        title: "No message",
+        hint: "Select a message to view it.",
+      }}
+      renderContent={loaded => <MessageContent message={loaded} onReply={onReply} onCompose={onCompose} />}
+    />
+  );
+}
+
+function MessageContent({
+  message: msg,
+  onReply,
+  onCompose,
+}: {
+  message: EmailMessage;
+  onReply: (cmd: string) => void;
+  onCompose: (mode: Exclude<ComposeMode, "compose">, message: EmailMessage) => void;
+}) {
+  const displayTimestamp = messageTimestamp(msg);
+
+  return (
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="shrink-0 px-5 pt-5 pb-4 border-b border-primary space-y-3">
+        <h2 className="text-base font-semibold text-primary leading-tight">{msg.subject || "(no subject)"}</h2>
+        <KeyValueMetadata
+          items={[
+            { label: "From", value: formatAddress(msg.from), breakAll: true },
+            msg.to.length > 0 && { label: "To", value: formatAddressList(msg.to) },
+            msg.cc && msg.cc.length > 0 && { label: "Cc", value: formatAddressList(msg.cc) },
+            {
+              label: "Date",
+              truncate: false,
+              value: (
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {displayTimestamp != null ? new Date(displayTimestamp).toLocaleString() : "—"}
+                </span>
+              ),
+            },
+          ]}
+        />
+        {msg.labels && msg.labels.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {msg.labels.map(l => (
+              <TagChip key={l} label={l} showIcon={false} />
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onCompose("reply", msg)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-medium transition-all focus-ring cursor-pointer shadow-button-primary"
+          >
+            <Reply className="w-3.5 h-3.5" /> Reply
+          </button>
+          <button
+            type="button"
+            onClick={() => onCompose("replyAll", msg)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-primary rounded-lg text-xs text-muted hover:text-primary hover:bg-hover transition-all focus-ring cursor-pointer"
+          >
+            <ReplyAll className="w-3.5 h-3.5" /> Reply all
+          </button>
+          <button
+            type="button"
+            onClick={() => onCompose("forward", msg)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-primary rounded-lg text-xs text-muted hover:text-primary hover:bg-hover transition-all focus-ring cursor-pointer"
+          >
+            <Forward className="w-3.5 h-3.5" /> Forward
+          </button>
+          <button
+            type="button"
+            onClick={() => onReply(`Reply to the email from ${senderName(msg)} with subject "${msg.subject}"`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-primary rounded-lg text-xs text-muted hover:text-primary hover:bg-hover transition-all focus-ring cursor-pointer"
+          >
+            <Bot className="w-3.5 h-3.5" /> Reply with AI
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto bg-white">
+        {msg.htmlBody ? (
+          <iframe
+            srcDoc={sanitizeEmailHtml(msg.htmlBody)}
+            className="w-full h-full min-h-[20rem] border-0 bg-white"
+            // Emails are authored for a light canvas; keep the iframe out of the app color-scheme.
+            style={{ colorScheme: "light" }}
+            // Empty sandbox: no scripts, forms, popups, or same-origin parent access.
+            sandbox=""
+            title="Email content"
+            referrerPolicy="no-referrer"
+          />
+        ) : msg.textBody ? (
+          <pre className="text-xs text-zinc-900 whitespace-pre-wrap font-sans leading-relaxed p-5">{msg.textBody}</pre>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-32 gap-2 text-muted">
+            <Mail className="w-6 h-6 opacity-30" />
+            <p className="text-sm">No body content.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
