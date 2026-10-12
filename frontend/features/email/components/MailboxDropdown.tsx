@@ -1,6 +1,6 @@
-import { ChevronDown } from "lucide-react";
 import InlineDropdown, { InlineDropdownItem } from "@tokenring-ai/one-frontend/components/ui/InlineDropdown.tsx";
 import { cn } from "@tokenring-ai/one-frontend/lib/utils.ts";
+import { ChevronDown } from "lucide-react";
 import type { EmailBoxRecord } from "../types.ts";
 import { getBoxPresentation } from "../utils.ts";
 

@@ -1,11 +1,12 @@
-import formatError from "@tokenring-ai/utility/error/formatError";
-import { Send, X } from "lucide-react";
-import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import FormActionBar from "@tokenring-ai/one-frontend/components/ui/FormActionBar.tsx";
 import { KeyValueRow } from "@tokenring-ai/one-frontend/components/ui/KeyValueMetadata.tsx";
 import { toastManager } from "@tokenring-ai/one-frontend/components/ui/toast.tsx";
 import { cn } from "@tokenring-ai/one-frontend/lib/utils.ts";
 import { emailRPCClient } from "@tokenring-ai/one-frontend/rpc.ts";
+import { Button } from "@tokenring-ai/one-frontend/ui";
+import formatError from "@tokenring-ai/utility/error/formatError";
+import { Save, Send, X } from "lucide-react";
+import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import type { ComposeDraft } from "../types.ts";
 import { isValidEmailList, parseEmailAddresses } from "../utils.ts";
 
@@ -19,42 +20,50 @@ const MODE_LABELS: Record<ComposeDraft["mode"], string> = {
   forward: "Forward",
 };
 
+/**
+ * Controlled compose form. The draft lives outside the component (a module
+ * store), so closing the panel mid-message keeps every field.
+ */
 export default function ComposeForm({
   provider,
-  initial,
+  draft,
+  session,
   ensureAgent,
+  onChange,
   onClose,
+  onSaved,
   onSent,
+  unsavedEdits = true,
 }: {
   provider: string;
-  initial: ComposeDraft;
+  draft: ComposeDraft;
+  /** Bumped when a new draft replaces the current one, so focus moves again. */
+  session: number;
   ensureAgent: () => string | Promise<string | null>;
+  onChange: (patch: Partial<ComposeDraft>) => void;
   onClose: () => void;
+  /** The draft was saved to the provider's Drafts box as `serverDraftId`. */
+  onSaved?: (serverDraftId: string) => void;
   onSent: () => void;
+  /** The form differs from what was last saved to the provider. */
+  unsavedEdits?: boolean;
 }) {
-  const [to, setTo] = useState(initial.to);
-  const [cc, setCc] = useState(initial.cc);
-  const [bcc, setBcc] = useState(initial.bcc);
-  const [subject, setSubject] = useState(initial.subject);
-  const [body, setBody] = useState(initial.body);
-  const [showCcBcc, setShowCcBcc] = useState(Boolean(initial.cc || initial.bcc));
+  const [showCcBcc, setShowCcBcc] = useState(Boolean(draft.cc || draft.bcc));
   const [sending, setSending] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const toRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const mode = draft.mode;
 
-  // Reset fields when parent swaps the draft without unmounting (e.g. Compose while already composing)
+  // A new draft (Compose while already composing, reply from another panel) re-aims focus.
   useEffect(() => {
-    setTo(initial.to);
-    setCc(initial.cc);
-    setBcc(initial.bcc);
-    setSubject(initial.subject);
-    setBody(initial.body);
-    setShowCcBcc(Boolean(initial.cc || initial.bcc));
     setSending(false);
-
-    // Focus To for new/forward; body for replies (recipients already filled)
     requestAnimationFrame(() => {
-      if (initial.mode === "reply" || initial.mode === "replyAll") {
+      // The user may already be typing by the time this runs; never steal focus back.
+      const active = document.activeElement;
+      if (active && active !== document.body && formRef.current?.contains(active)) return;
+      if (mode === "reply" || mode === "replyAll") {
         bodyRef.current?.focus();
         // Place caret at start so user types above the quote
         bodyRef.current?.setSelectionRange(0, 0);
@@ -62,42 +71,100 @@ export default function ComposeForm({
         toRef.current?.focus();
       }
     });
-  }, [initial]);
+  }, [session, mode]);
+
+  /** The draft as provider draft fields (shared by Save draft and sending a saved draft). */
+  const draftFields = () => {
+    const ccAddrs = parseEmailAddresses(draft.cc);
+    const bccAddrs = parseEmailAddresses(draft.bcc);
+    return {
+      subject: draft.subject.trim() || "(no subject)",
+      to: parseEmailAddresses(draft.to),
+      ...(ccAddrs.length > 0 && { cc: ccAddrs }),
+      ...(bccAddrs.length > 0 && { bcc: bccAddrs }),
+      textBody: draft.body,
+      ...(draft.relatedThreadId && { threadId: draft.relatedThreadId }),
+    };
+  };
+
+  /** Saves to the provider's Drafts box, updating the saved draft in place when there is one. */
+  const saveToProvider = async () => {
+    const saved = await emailRPCClient.saveDraft({
+      provider,
+      ...(draft.serverDraftId && { id: draft.serverDraftId }),
+      ...draftFields(),
+    });
+    onSaved?.(saved.draft.id);
+    return saved.draft;
+  };
+
+  const handleSaveDraft = async () => {
+    // Drafts may be incomplete, but addresses that are present must parse.
+    for (const [label, value] of [
+      ["To", draft.to],
+      ["Cc", draft.cc],
+      ["Bcc", draft.bcc],
+    ] as const) {
+      if (value.trim() && !isValidEmailList(value)) {
+        toastManager.error(`${label} contains an invalid address`, { duration: 3500 });
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      await saveToProvider();
+      toastManager.success("Draft saved", { duration: 2500 });
+    } catch (err) {
+      toastManager.error(formatError(err), { duration: 5000 });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault();
-    if (!isValidEmailList(to)) {
+    if (!isValidEmailList(draft.to)) {
       toastManager.error("Enter at least one valid recipient in To", { duration: 3500 });
       return;
     }
-    if (cc.trim() && !isValidEmailList(cc)) {
+    if (draft.cc.trim() && !isValidEmailList(draft.cc)) {
       toastManager.error("Cc contains an invalid address", { duration: 3500 });
       return;
     }
-    if (bcc.trim() && !isValidEmailList(bcc)) {
+    if (draft.bcc.trim() && !isValidEmailList(draft.bcc)) {
       toastManager.error("Bcc contains an invalid address", { duration: 3500 });
       return;
     }
 
     setSending(true);
     try {
+      // A draft saved to the provider is updated with the latest edits and sent
+      // in place, so it does not linger in the Drafts box.
+      if (draft.serverDraftId) {
+        const saved = await saveToProvider();
+        const sent = await emailRPCClient.sendDraft({ provider, id: saved.id });
+        toastManager.success(sent.message || "Email sent", { duration: 2500 });
+        onSent();
+        return;
+      }
+
       const agentId = await ensureAgent();
       // ensureAgent already toasts on create failure
       if (!agentId) return;
 
       await emailRPCClient.updateEmailState({ agentId, selectedProvider: provider });
 
-      const toAddrs = parseEmailAddresses(to);
-      const ccAddrs = parseEmailAddresses(cc);
-      const bccAddrs = parseEmailAddresses(bcc);
+      const toAddrs = parseEmailAddresses(draft.to);
+      const ccAddrs = parseEmailAddresses(draft.cc);
+      const bccAddrs = parseEmailAddresses(draft.bcc);
 
       const created = await emailRPCClient.createDraft({
         agentId,
-        subject: subject.trim() || "(no subject)",
+        subject: draft.subject.trim() || "(no subject)",
         to: toAddrs,
         ...(ccAddrs.length > 0 && { cc: ccAddrs }),
         ...(bccAddrs.length > 0 && { bcc: bccAddrs }),
-        textBody: body,
+        textBody: draft.body,
       });
 
       if (created.status === "agentNotFound") {
@@ -106,10 +173,10 @@ export default function ComposeForm({
       }
 
       // createDraft RPC omits threadId; attach it via update so replies stay in-thread
-      if (initial.relatedThreadId) {
+      if (draft.relatedThreadId) {
         const updated = await emailRPCClient.updateDraft({
           agentId,
-          updatedData: { threadId: initial.relatedThreadId },
+          updatedData: { threadId: draft.relatedThreadId },
         });
         if (updated.status === "agentNotFound") {
           toastManager.error("Email agent is no longer available. Try again.", { duration: 4000 });
@@ -133,9 +200,9 @@ export default function ComposeForm({
   };
 
   return (
-    <form onSubmit={e => void handleSubmit(e)} className="h-full flex flex-col overflow-hidden bg-primary">
+    <form ref={formRef} onSubmit={e => void handleSubmit(e)} className="h-full flex flex-col overflow-hidden bg-primary">
       <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-primary bg-secondary">
-        <h2 className="text-sm font-semibold text-primary">{MODE_LABELS[initial.mode]}</h2>
+        <h2 className="text-sm font-semibold text-primary">{MODE_LABELS[mode]}</h2>
         <button
           type="button"
           onClick={onClose}
@@ -159,8 +226,8 @@ export default function ComposeForm({
             <input
               ref={toRef}
               type="text"
-              value={to}
-              onChange={e => setTo(e.target.value)}
+              value={draft.to}
+              onChange={e => onChange({ to: e.target.value })}
               placeholder="recipient@example.com"
               className={inputClass}
               required
@@ -183,7 +250,16 @@ export default function ComposeForm({
               truncate={false}
               labelClassName="text-xs text-muted"
               valueClassName="text-inherit"
-              value={<input type="text" value={cc} onChange={e => setCc(e.target.value)} placeholder="optional" className={inputClass} autoComplete="off" />}
+              value={
+                <input
+                  type="text"
+                  value={draft.cc}
+                  onChange={e => onChange({ cc: e.target.value })}
+                  placeholder="optional"
+                  className={inputClass}
+                  autoComplete="off"
+                />
+              }
             />
             <KeyValueRow
               as="label"
@@ -193,7 +269,16 @@ export default function ComposeForm({
               truncate={false}
               labelClassName="text-xs text-muted"
               valueClassName="text-inherit"
-              value={<input type="text" value={bcc} onChange={e => setBcc(e.target.value)} placeholder="optional" className={inputClass} autoComplete="off" />}
+              value={
+                <input
+                  type="text"
+                  value={draft.bcc}
+                  onChange={e => onChange({ bcc: e.target.value })}
+                  placeholder="optional"
+                  className={inputClass}
+                  autoComplete="off"
+                />
+              }
             />
           </>
         )}
@@ -207,21 +292,52 @@ export default function ComposeForm({
           labelClassName="text-xs text-muted"
           valueClassName="text-inherit"
           value={
-            <input type="text" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className={inputClass} autoComplete="off" />
+            <input
+              type="text"
+              value={draft.subject}
+              onChange={e => onChange({ subject: e.target.value })}
+              placeholder="Subject"
+              className={inputClass}
+              autoComplete="off"
+            />
           }
         />
 
         <textarea
           ref={bodyRef}
-          value={body}
-          onChange={e => setBody(e.target.value)}
+          value={draft.body}
+          onChange={e => onChange({ body: e.target.value })}
           placeholder="Write your message…"
+          aria-label="Message body"
           rows={12}
           className={cn(inputClass, "resize-y min-h-[12rem] font-sans leading-relaxed")}
         />
       </div>
 
-      <FormActionBar onCancel={onClose} submitLabel="Send" submitIcon={Send} loading={sending} variant="red" separated size="md" />
+      <FormActionBar
+        onCancel={onClose}
+        submitLabel="Send"
+        submitIcon={Send}
+        loading={sending}
+        disabled={saving}
+        separated
+        size="md"
+        status={draft.serverDraftId ? <span className="text-xs text-muted">{unsavedEdits ? "Unsaved changes" : "Saved in Drafts"}</span> : undefined}
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            icon={Save}
+            busy={saving}
+            busyLabel="Saving…"
+            disabled={sending}
+            onClick={() => void handleSaveDraft()}
+          >
+            Save draft
+          </Button>
+        }
+      />
     </form>
   );
 }

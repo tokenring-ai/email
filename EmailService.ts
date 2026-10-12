@@ -25,6 +25,47 @@ import { emailToRFC822 } from "./util/emailToRFC822.ts";
 
 export type ParsedEmailConfig = z.output<typeof EmailConfigSchema>;
 
+/** The optional mailbox operations an EmailProvider may implement. */
+export type OptionalEmailOperation = "markAsUnread" | "archiveMessage" | "setStarred" | "moveMessage" | "getDraftByMessageId";
+
+const OPERATION_LABELS: Record<OptionalEmailOperation, string> = {
+  markAsUnread: "marking messages unread",
+  archiveMessage: "archiving",
+  setStarred: "starring",
+  moveMessage: "moving messages between mailboxes",
+  getDraftByMessageId: "resuming saved drafts",
+};
+
+/**
+ * Returns an optional provider operation bound to its provider, or throws a
+ * readable error when the provider does not implement it.
+ */
+export function requireEmailOperation<K extends OptionalEmailOperation>(
+  provider: EmailProvider,
+  operation: K,
+  providerName = provider.description,
+): NonNullable<EmailProvider[K]> {
+  const fn = provider[operation];
+  if (typeof fn !== "function") {
+    throw new Error(`Email provider "${providerName}" does not support ${OPERATION_LABELS[operation]}`);
+  }
+  return (fn as (...args: never[]) => unknown).bind(provider) as NonNullable<EmailProvider[K]>;
+}
+
+/** Read-only snapshot of an agent's inbox watch (see EmailService.watchEmails). */
+export interface EmailWatchStatus {
+  /** The agent has a watch configuration. */
+  configured: boolean;
+  /** The background polling loop is running. */
+  running: boolean;
+  pollIntervalSeconds: number;
+  unreadOnly: boolean;
+  markAsRead: boolean;
+  actionCount: number;
+  /** Messages already handed to the agent by the watch. */
+  processedCount: number;
+}
+
 export default class EmailService implements TokenRingService {
   readonly name = "EmailService";
   description = "Abstract interface for email inbox and drafting operations";
@@ -155,6 +196,19 @@ export default class EmailService implements TokenRingService {
     }
   }
 
+  getWatchStatus(agent: Agent): EmailWatchStatus {
+    const state = agent.getState(EmailState);
+    return {
+      configured: state.watch !== undefined,
+      running: state.isWatching,
+      pollIntervalSeconds: Math.round(this.options.pollInterval / 1000),
+      unreadOnly: state.watch?.unreadOnly ?? false,
+      markAsRead: state.watch?.markAsRead ?? false,
+      actionCount: state.watch?.actions.length ?? 0,
+      processedCount: state.processedEmails.size,
+    };
+  }
+
   requireActiveEmailProvider(agent: Agent): EmailProvider {
     const activeProvider = agent.getState(EmailState).activeProvider;
     if (!activeProvider) throw new ConfigurationError(this.name, "No email provider is currently selected");
@@ -187,6 +241,67 @@ export default class EmailService implements TokenRingService {
 
   getMessageById(id: string, agent: Agent): Promise<EmailMessage> {
     return this.requireActiveEmailProvider(agent).getMessageById(id);
+  }
+
+  /**
+   * Deletes a message through the active provider (providers move it to trash
+   * where they can). Clears the selection when the deleted message was it.
+   */
+  async deleteMessage(id: string, agent: Agent): Promise<void> {
+    await this.requireActiveEmailProvider(agent).deleteMessage(id);
+    if (this.getCurrentMessage(agent)?.id === id) {
+      this.clearCurrentMessage(agent);
+    }
+  }
+
+  /** Archives a message through the active provider (it leaves the inbox but stays searchable). */
+  async archiveMessage(id: string, agent: Agent): Promise<void> {
+    await requireEmailOperation(this.requireActiveEmailProvider(agent), "archiveMessage")(id);
+    this.patchCurrentMessage(id, {}, agent, labels => labels.filter(label => label !== "INBOX"));
+  }
+
+  /**
+   * Moves a message to another mailbox through the active provider. Moving the
+   * selected message to the trash clears the selection, as deleting does.
+   */
+  async moveMessage(id: string, box: string, agent: Agent): Promise<void> {
+    await requireEmailOperation(this.requireActiveEmailProvider(agent), "moveMessage")(id, box);
+    if (box.trim().toLowerCase() === "trash" && this.getCurrentMessage(agent)?.id === id) {
+      this.clearCurrentMessage(agent);
+    }
+  }
+
+  async setStarred(id: string, starred: boolean, agent: Agent): Promise<void> {
+    await requireEmailOperation(this.requireActiveEmailProvider(agent), "setStarred")(id, starred);
+    this.patchCurrentMessage(id, { isStarred: starred }, agent);
+  }
+
+  async markAsRead(id: string, agent: Agent): Promise<void> {
+    await this.requireActiveEmailProvider(agent).markAsRead(id);
+    this.patchCurrentMessage(id, { isRead: true }, agent);
+  }
+
+  async markAsUnread(id: string, agent: Agent): Promise<void> {
+    await requireEmailOperation(this.requireActiveEmailProvider(agent), "markAsUnread")(id);
+    this.patchCurrentMessage(id, { isRead: false }, agent);
+  }
+
+  /** Keeps the selected message in step with a change made through the provider. */
+  private patchCurrentMessage(
+    id: string,
+    patch: Partial<Pick<EmailMessage, "isRead" | "isStarred">>,
+    agent: Agent,
+    updateLabels?: (labels: string[]) => string[],
+  ): void {
+    agent.mutateState(EmailState, state => {
+      const current = state.currentEmail;
+      if (current?.id !== id) return;
+      const next: EmailMessage = { ...current };
+      if (patch.isRead !== undefined) next.isRead = patch.isRead;
+      if (patch.isStarred !== undefined) next.isStarred = patch.isStarred;
+      if (updateLabels && current.labels) next.labels = updateLabels(current.labels);
+      state.currentEmail = next;
+    });
   }
 
   async selectMessageById(id: string, agent: Agent): Promise<EmailMessage> {

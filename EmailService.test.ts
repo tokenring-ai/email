@@ -52,13 +52,15 @@ function mockProvider(overrides: Partial<EmailProvider> = {}): EmailProvider {
     },
     async sendDraft() {},
     async markAsRead() {},
+    async deleteMessage() {},
     ...overrides,
   };
 }
 
-function createAgentHarness(initial?: { draft?: EmailDraft }) {
+function createAgentHarness(initial?: { draft?: EmailDraft; message?: EmailMessage }) {
   const state = new EmailState({ provider: "mock" });
   if (initial?.draft) state.currentDraft = initial.draft;
+  if (initial?.message) state.currentEmail = initial.message;
   const inputs: InputMessage[] = [];
   const agent = {
     getState(Slice: typeof EmailState) {
@@ -147,5 +149,77 @@ describe("EmailService.updateDraft", () => {
     expect(updated.subject).toBe("New subject");
     expect(state.currentDraft?.subject).toBe("New subject");
     expect(state.currentDraft?.to).toEqual(sampleDraft.to);
+  });
+});
+
+describe("EmailService.deleteMessage", () => {
+  test("deletes through the active provider and clears the selected message", async () => {
+    const deleted: string[] = [];
+    const service = new EmailService();
+    service.registerEmailProvider(
+      "mock",
+      mockProvider({
+        async deleteMessage(id) {
+          deleted.push(id);
+        },
+      }),
+    );
+    const { agent, state } = createAgentHarness({ message: sampleMessage });
+
+    await service.deleteMessage(sampleMessage.id, agent);
+
+    expect(deleted).toEqual([sampleMessage.id]);
+    expect(state.currentEmail).toBeUndefined();
+  });
+
+  test("keeps a different selected message", async () => {
+    const service = new EmailService();
+    service.registerEmailProvider("mock", mockProvider());
+    const { agent, state } = createAgentHarness({ message: sampleMessage });
+
+    await service.deleteMessage("some-other-message", agent);
+
+    expect(state.currentEmail?.id).toBe(sampleMessage.id);
+  });
+
+  test("throws when no provider is selected", async () => {
+    const service = new EmailService();
+    service.registerEmailProvider("mock", mockProvider());
+    const { agent, state } = createAgentHarness();
+    state.activeProvider = undefined;
+
+    await expect(service.deleteMessage(sampleMessage.id, agent)).rejects.toThrow(/No email provider/);
+  });
+});
+
+describe("getWatchStatus", () => {
+  test("reports an unconfigured, idle watch", () => {
+    const service = new EmailService();
+    const { agent } = createAgentHarness();
+    expect(service.getWatchStatus(agent)).toEqual({
+      configured: false,
+      running: false,
+      pollIntervalSeconds: 60,
+      unreadOnly: false,
+      markAsRead: false,
+      actionCount: 0,
+      processedCount: 0,
+    });
+  });
+
+  test("reports a configured, running watch", () => {
+    const service = new EmailService();
+    const { agent, state } = createAgentHarness();
+    state.watch = { unreadOnly: true, markAsRead: true, maxEmailsToConsider: 10, actions: [{ pattern: "x", command: "y" }] };
+    state.isWatching = true;
+    state.processedEmails.add("m1");
+    expect(service.getWatchStatus(agent)).toMatchObject({
+      configured: true,
+      running: true,
+      unreadOnly: true,
+      markAsRead: true,
+      actionCount: 1,
+      processedCount: 1,
+    });
   });
 });

@@ -19,3 +19,21 @@ describe("updateEmailState input", () => {
     expect(parsed.selectedMessageId).toBeUndefined();
   });
 });
+
+describe("deleteMessage", () => {
+  test("requires an agent and a message id", () => {
+    const parsed = EmailRpcSchema.methods.deleteMessage.input.parse({ agentId: "agent-1", id: "m1" });
+
+    expect(parsed).toEqual({ agentId: "agent-1", id: "m1" });
+    expect(EmailRpcSchema.methods.deleteMessage.type).toBe("mutation");
+    expect(() => EmailRpcSchema.methods.deleteMessage.input.parse({ agentId: "agent-1" })).toThrow();
+  });
+
+  test("reports success or a missing agent", () => {
+    expect(EmailRpcSchema.methods.deleteMessage.result.parse({ status: "success", message: "Deleted message: m1" })).toEqual({
+      status: "success",
+      message: "Deleted message: m1",
+    });
+    expect(EmailRpcSchema.methods.deleteMessage.result.parse({ status: "agentNotFound" })).toEqual({ status: "agentNotFound" });
+  });
+});

@@ -1,4 +1,4 @@
-import type { EmailAddress, EmailMessage } from "@tokenring-ai/email";
+import type { EmailAddress, EmailDraft, EmailMessage } from "@tokenring-ai/email";
 import { BOX_META, DEFAULT_BOX_META } from "./constants.ts";
 import type { ComposeDraft, ComposeMode, EmailBoxRecord } from "./types.ts";
 
@@ -205,4 +205,18 @@ export function draftFromMessage(msg: EmailMessage, mode: ComposeMode, options?:
 
 export function emptyComposeDraft(): ComposeDraft {
   return { mode: "compose", to: "", cc: "", bcc: "", subject: "", body: "" };
+}
+
+/** Seeds the compose form from a draft saved at the provider, so editing and sending update it in place. */
+export function composeDraftFromSaved(draft: EmailDraft): ComposeDraft {
+  return {
+    mode: "compose",
+    to: draft.to.map(formatAddress).join(", "),
+    cc: (draft.cc ?? []).map(formatAddress).join(", "),
+    bcc: (draft.bcc ?? []).map(formatAddress).join(", "),
+    subject: draft.subject,
+    body: draft.textBody ?? "",
+    serverDraftId: draft.id,
+    ...(draft.threadId ? { relatedThreadId: draft.threadId } : {}),
+  };
 }

@@ -373,6 +373,19 @@ Send the currently selected email draft.
 email_sendCurrentDraft({})
 ```
 
+### 9–12. Mailbox actions
+
+These tools act on the selected message unless an `id` is given, and go through `ChatService.checkToolApproval` (the workspace tool-approval policy: auto-approve threshold, ask, or reject). Archive, move, star and mark-unread need provider support (`EmailProviderCapabilities`); Gmail has all of them.
+
+| Tool | Input | Safety level | Effect |
+| --- | --- | --- | --- |
+| `email_updateMessageFlags` | `{ id?, read?: boolean, starred?: boolean }` | 3 | Mark read/unread, star/unstar |
+| `email_archiveMessage` | `{ id? }` | 5 | Remove from the inbox (stays searchable) |
+| `email_moveMessage` | `{ id?, box: string }` | 5 (6 for `trash`) | Move to `inbox`, `spam`, `trash` or a label |
+| `email_deleteMessage` | `{ id? }` | 6 | Move to the provider's trash (recoverable) |
+
+The bundled `email` agent's prompt describes these abilities and asks it to name the message and act on one at a time.
+
 ## Scripting Functions
 
 The package registers 5 scripting functions for programmatic access:
@@ -561,6 +574,25 @@ Update email state for an agent.
 `{ status: "success", selectedMessageId: string | null, selectedDraftId: string | null, selectedProvider: string | null, availableProviders: string[] }`
 or `{ status: "agentNotFound" }`
 
+### Mailbox, draft and watch methods
+
+Provider-keyed (no agent needed) unless noted:
+
+| Method | Type | Input | Output |
+| --- | --- | --- | --- |
+| `getEmailCapabilities` | query | `{ provider }` | `{ capabilities: { markUnread, archive, star, move, resumeDrafts } }` |
+| `modifyMessages` | mutation | `{ provider, ids: string[], action }` where `action` is `{ type: "markRead" \| "markUnread" \| "archive" }`, `{ type: "star", starred }` or `{ type: "move", box }` | `{ succeeded: string[], failed: { id, error }[], message }` — ids are applied one at a time; failures do not stop the rest |
+| `saveDraft` | mutation | `{ provider, id?, subject, to, cc?, bcc?, textBody?, htmlBody?, threadId? }` | `{ draft, message }` — creates a draft, or updates draft `id` in place |
+| `getDraftForMessage` | query | `{ provider, messageId }` | `{ draft: EmailDraft \| null, message }` — resolves a Drafts-box message to its draft |
+| `sendDraft` | mutation | `{ provider, id }` | `{ message }` |
+| `getEmailWatchStatus` | query | `{ agentId }` | `{ status: "success", configured, running, pollIntervalSeconds, unreadOnly, markAsRead, actionCount, processedCount }` or `{ status: "agentNotFound" }` |
+
+## Dashboard
+
+- The reading pane offers Star, Mark unread, Archive and "Move to" (inbox, spam, trash, labels — never Sent/Drafts/Starred) where the provider supports them; archive and move close the panel and refresh the list.
+- Compose has **Save draft**, which saves to the provider's Drafts box and then updates that draft in place. Sending a saved draft sends it in place instead of creating another. Opening a message in the Drafts box shows **Edit draft**, which resumes it in the compose panel. A saved, unchanged draft closes without a discard prompt.
+- The navigator shows the attached agent's inbox watch (Watching / Stopped / Not configured, poll interval and action count), read-only.
+
 ## Core Components
 
 ### EmailService
@@ -619,10 +651,21 @@ interface EmailProvider {
   searchMessages(filter: EmailSearchOptions): Promise<EmailMessage[]>;
   getMessageById(id: string): Promise<EmailMessage>;
   createDraft(data: DraftEmailData): Promise<EmailDraft>;
-  updateDraft(data: UpdateDraftEmailData): Promise<EmailDraft>;
+  updateDraft(data: EmailDraft): Promise<EmailDraft>;
   sendDraft(id: string): Promise<void>;
+  markAsRead(id: string): Promise<void>;
+  deleteMessage(id: string): Promise<void>;
+
+  // Optional — reported through getEmailProviderCapabilities()
+  markAsUnread?(id: string): Promise<void>;
+  archiveMessage?(id: string): Promise<void>;
+  setStarred?(id: string, starred: boolean): Promise<void>;
+  moveMessage?(id: string, box: string): Promise<void>;
+  getDraftByMessageId?(messageId: string): Promise<EmailDraft | undefined>;
 }
 ```
+
+`EmailMessage.isStarred` is set by providers that support starring. `EmailService` adds `archiveMessage`, `moveMessage`, `setStarred`, `markAsRead`, `markAsUnread` (agent-scoped, keeping the selected message in step) and `getWatchStatus(agent)`; `requireEmailOperation(provider, op)` throws a readable error when a provider lacks an optional operation.
 
 ### Key Types
 

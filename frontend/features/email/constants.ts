@@ -1,5 +1,5 @@
-import { AlertCircle, Archive, FileText, Inbox, type LucideIcon, Mail, Send, Star, Trash2 } from "lucide-react";
 import type { FilterTabOption } from "@tokenring-ai/one-frontend/components/ui/FilterTabs.tsx";
+import { AlertCircle, Archive, FileText, Inbox, type LucideIcon, Mail, Send, Star, Trash2 } from "lucide-react";
 import type { MessageFilter } from "./types.ts";
 
 export const BOX_META: Record<string, { icon: LucideIcon; color: string }> = {

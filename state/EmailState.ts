@@ -20,6 +20,14 @@ const serializationSchema = z
   })
   .prefault({});
 
+/**
+ * Bound on the persisted processed-id set: an inbox watch would otherwise
+ * retain every message id for the agent's lifetime. Oldest ids are dropped
+ * first; a dropped id can only cause a re-processing of mail older than the
+ * cap horizon.
+ */
+const MAX_PROCESSED_EMAILS = 1000;
+
 export class EmailState extends AgentStateSlice<typeof serializationSchema> {
   activeProvider: string | undefined;
   currentEmail: EmailMessage | undefined;
@@ -50,7 +58,7 @@ export class EmailState extends AgentStateSlice<typeof serializationSchema> {
     return {
       activeProvider: this.activeProvider,
       watch: this.watch,
-      processedEmails: this.processedEmails.valuesArray(),
+      processedEmails: this.processedEmails.valuesArray().slice(-MAX_PROCESSED_EMAILS),
       currentEmail: this.currentEmail,
       currentDraft: this.currentDraft,
       lastAttachedEmailId: this.lastAttachedEmailId,

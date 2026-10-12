@@ -1,6 +1,8 @@
+import InlineDropdown, { InlineDropdownItem } from "@tokenring-ai/one-frontend/components/ui/InlineDropdown.tsx";
 import { ChevronDown, Globe, Loader2, WifiOff } from "lucide-react";
 import { useState } from "react";
-import InlineDropdown, { InlineDropdownItem } from "@tokenring-ai/one-frontend/components/ui/InlineDropdown.tsx";
+import { Link } from "react-router-dom";
+import { EMAIL_PROVIDER_CONFIG_HREF } from "../../../lib/emailShared.tsx";
 
 export default function ProviderSelector({
   provider,
@@ -25,9 +27,13 @@ export default function ProviderSelector({
 
   if (availableProviders.length === 0) {
     return (
-      <span className="text-xs text-muted flex items-center gap-1">
-        <WifiOff className="w-3 h-3" /> No providers configured
-      </span>
+      <Link
+        to={EMAIL_PROVIDER_CONFIG_HREF}
+        title="Set up Gmail by adding a Google account with Gmail enabled"
+        className="text-xs text-muted hover:text-primary flex items-center gap-1 focus-ring rounded"
+      >
+        <WifiOff className="w-3 h-3" /> No providers — set up Gmail
+      </Link>
     );
   }
 

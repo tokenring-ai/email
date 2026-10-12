@@ -1,43 +1,95 @@
-import type { EmailMessage } from "@tokenring-ai/email";
-import { Bot, Clock, Forward, Mail, Reply, ReplyAll } from "lucide-react";
+import type { EmailMessage, EmailProviderCapabilities } from "@tokenring-ai/email";
 import DetailViewerArea from "@tokenring-ai/one-frontend/components/ui/DetailViewerArea.tsx";
 import KeyValueMetadata from "@tokenring-ai/one-frontend/components/ui/KeyValueMetadata.tsx";
 import TagChip from "@tokenring-ai/one-frontend/components/ui/TagChip.tsx";
 import { sanitizeEmailHtml } from "@tokenring-ai/one-frontend/lib/sanitizeHtml.ts";
-import { useEmailMessage } from "@tokenring-ai/one-frontend/rpc.ts";
-import type { ComposeMode } from "../types.ts";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@tokenring-ai/one-frontend/ui";
+import { Archive, Bot, ChevronDown, Clock, FolderInput, Forward, Mail, MailOpen, MailWarning, PenSquare, Reply, ReplyAll, Star, Trash2 } from "lucide-react";
+import { BOX_META, DEFAULT_BOX_META } from "../constants.ts";
+import type { ComposeMode, EmailBoxRecord } from "../types.ts";
 import { formatAddress, formatAddressList, messageTimestamp, senderName } from "../utils.ts";
 
+const secondaryButtonClass =
+  "flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-primary rounded-lg text-xs text-muted hover:text-primary hover:bg-hover transition-all focus-ring cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+
+/**
+ * Mailbox changes the reading pane offers. Each is shown only when the
+ * provider supports it (see EmailProviderCapabilities).
+ */
+export interface MessageMailboxActions {
+  capabilities: EmailProviderCapabilities;
+  /** Mailboxes the message can be moved into (excludes its own and view-only boxes). */
+  moveTargets: EmailBoxRecord[];
+  onArchive: () => void;
+  onToggleStar: () => void;
+  onMove: (box: string) => void;
+  onMarkUnread: () => void;
+  /** Opens the saved draft in the compose panel (messages in the Drafts box). */
+  onEditDraft?: () => void;
+  /** A mailbox change is in flight, so the actions are disabled. */
+  busy: boolean;
+}
+
+/**
+ * Presentational reading pane. The panel that owns the message loads it (so it
+ * can title its tab) and passes the request state in.
+ */
 export default function MessageViewer({
-  provider,
-  messageId,
+  message,
+  loading,
+  error,
+  onRetry,
   onReply,
   onCompose,
+  onDelete,
+  deleting,
+  onMarkRead,
+  markingRead = false,
+  mailboxActions,
 }: {
-  provider: string;
-  messageId: string;
+  message: EmailMessage | null;
+  loading: boolean;
+  error?: unknown;
+  onRetry: () => void;
   onReply: (cmd: string) => void;
   onCompose: (mode: Exclude<ComposeMode, "compose">, message: EmailMessage) => void;
+  /** Deletes the message being read; the owning panel confirms and closes itself. */
+  onDelete: () => void;
+  /** A delete is in flight, so the action is disabled. */
+  deleting: boolean;
+  /** Marks an unread message as read; "mark unread" is a mailbox action, offered where the provider supports it. */
+  onMarkRead?: () => void;
+  markingRead?: boolean;
+  mailboxActions?: MessageMailboxActions;
 }) {
-  const { data, isLoading, error, mutate } = useEmailMessage(provider, messageId);
-  const msg = data?.email ?? null;
-
   return (
     <DetailViewerArea
       ready
       hasSelection
-      data={msg}
-      loading={isLoading}
-      {...(error != null ? { error } : !isLoading && !msg ? { error: new Error("Could not load message.") } : {})}
+      data={message}
+      loading={loading}
+      {...(error != null ? { error } : !loading && !message ? { error: new Error("Could not load message.") } : {})}
       loadingMessage="Loading message…"
       errorTitle="Could not load message"
-      onRetry={() => void mutate()}
+      onRetry={onRetry}
       emptyState={{
         icon: Mail,
         title: "No message",
         hint: "Select a message to view it.",
       }}
-      renderContent={loaded => <MessageContent message={loaded} onReply={onReply} onCompose={onCompose} />}
+      renderContent={loaded => (
+        <MessageContent
+          key={loaded.id}
+          message={loaded}
+          onReply={onReply}
+          onCompose={onCompose}
+          onDelete={onDelete}
+          deleting={deleting}
+          {...(onMarkRead ? { onMarkRead } : {})}
+          markingRead={markingRead}
+          {...(mailboxActions ? { mailboxActions } : {})}
+        />
+      )}
     />
   );
 }
@@ -46,10 +98,20 @@ function MessageContent({
   message: msg,
   onReply,
   onCompose,
+  onDelete,
+  deleting,
+  onMarkRead,
+  markingRead,
+  mailboxActions,
 }: {
   message: EmailMessage;
   onReply: (cmd: string) => void;
   onCompose: (mode: Exclude<ComposeMode, "compose">, message: EmailMessage) => void;
+  onDelete: () => void;
+  deleting: boolean;
+  onMarkRead?: () => void;
+  markingRead: boolean;
+  mailboxActions?: MessageMailboxActions;
 }) {
   const displayTimestamp = messageTimestamp(msg);
 
@@ -110,6 +172,25 @@ function MessageContent({
           >
             <Bot className="w-3.5 h-3.5" /> Reply with AI
           </button>
+          {onMarkRead && !msg.isRead && (
+            <button
+              type="button"
+              onClick={onMarkRead}
+              disabled={markingRead}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-primary rounded-lg text-xs text-muted hover:text-primary hover:bg-hover transition-all focus-ring cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <MailOpen className="w-3.5 h-3.5" /> {markingRead ? "Marking…" : "Mark as read"}
+            </button>
+          )}
+          {mailboxActions && <MailboxActionButtons message={msg} actions={mailboxActions} />}
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary border border-primary rounded-lg text-xs text-muted hover:text-red-500 hover:border-red-500/40 hover:bg-hover transition-all focus-ring cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> {deleting ? "Deleting…" : "Delete"}
+          </button>
         </div>
       </div>
 
@@ -135,5 +216,62 @@ function MessageContent({
         )}
       </div>
     </div>
+  );
+}
+
+function MailboxActionButtons({ message, actions }: { message: EmailMessage; actions: MessageMailboxActions }) {
+  const { capabilities, busy } = actions;
+  const starred = message.isStarred === true;
+  const inInbox = message.labels ? message.labels.includes("INBOX") : true;
+  return (
+    <>
+      {actions.onEditDraft && (
+        <button type="button" onClick={actions.onEditDraft} disabled={busy} className={secondaryButtonClass}>
+          <PenSquare className="w-3.5 h-3.5" /> Edit draft
+        </button>
+      )}
+      {capabilities.star && (
+        <button
+          type="button"
+          onClick={actions.onToggleStar}
+          disabled={busy}
+          aria-pressed={starred}
+          className={secondaryButtonClass}
+          title={starred ? "Remove the star" : "Star this message"}
+        >
+          <Star className={starred ? "w-3.5 h-3.5 fill-amber-400 text-amber-400" : "w-3.5 h-3.5"} /> {starred ? "Starred" : "Star"}
+        </button>
+      )}
+      {capabilities.markUnread && message.isRead && (
+        <button type="button" onClick={actions.onMarkUnread} disabled={busy} className={secondaryButtonClass}>
+          <MailWarning className="w-3.5 h-3.5" /> Mark unread
+        </button>
+      )}
+      {capabilities.archive && inInbox && (
+        <button type="button" onClick={actions.onArchive} disabled={busy} className={secondaryButtonClass} title="Remove from the inbox; it stays searchable">
+          <Archive className="w-3.5 h-3.5" /> Archive
+        </button>
+      )}
+      {capabilities.move && actions.moveTargets.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild disabled={busy}>
+            <button type="button" disabled={busy} className={secondaryButtonClass}>
+              <FolderInput className="w-3.5 h-3.5" /> Move to <ChevronDown className="w-3 h-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {actions.moveTargets.map(box => {
+              const meta = BOX_META[box.id] ?? DEFAULT_BOX_META;
+              const Icon = meta.icon;
+              return (
+                <DropdownMenuItem key={box.id} onSelect={() => actions.onMove(box.id)} className="gap-2 text-xs">
+                  <Icon className={`w-3.5 h-3.5 ${meta.color}`} /> {box.name}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </>
   );
 }
