@@ -1,34 +1,34 @@
-import EmptyState from "@tokenring-ai/one-frontend/components/ui/EmptyState.tsx";
+import { usePanelTitle } from "@tokenring-ai/one-frontend/apps/panelHooks.ts";
 import { toastManager } from "@tokenring-ai/one-frontend/components/ui/toast.tsx";
 import ViewHeader from "@tokenring-ai/one-frontend/components/ui/ViewHeader.tsx";
 import ViewShell from "@tokenring-ai/one-frontend/components/ui/ViewShell.tsx";
-import type { ViewProps } from "@tokenring-ai/one-frontend/dock/types.ts";
 import { useBusyAction } from "@tokenring-ai/one-frontend/hooks/useBusyAction.ts";
 import { useConfirmDialog } from "@tokenring-ai/one-frontend/hooks/useConfirmDialog.tsx";
+import type { ViewProps } from "@tokenring-ai/one-frontend/layout/define.ts";
+import { usePanel } from "@tokenring-ai/one-frontend/layout/hooks.ts";
 import { emailRPCClient, useEmailBoxes, useEmailMessage } from "@tokenring-ai/one-frontend/rpc.ts";
+import { IconButton } from "@tokenring-ai/one-frontend/ui";
 import formatError from "@tokenring-ai/utility/error/formatError";
-import { Mail, X } from "lucide-react";
-import { useCallback, useEffect, useMemo } from "react";
-import type { EmailMessageParams } from "../app.tsx";
+import { X } from "lucide-react";
+import { useCallback, useMemo } from "react";
 import MessageViewer, { type MessageMailboxActions } from "../features/email/components/MessageViewer.tsx";
 import type { ComposeMode } from "../features/email/types.ts";
 import { composeDraftFromSaved, draftFromMessage } from "../features/email/utils.ts";
+import { sendToAgent, useEmailAgentSession, useSyncEmailState } from "../lib/emailCommon.tsx";
 import { type EmailMessageAction, modifyEmailMessages, moveTargets, useEmailCapabilities } from "../lib/emailQueries.ts";
-import { sendToAgent, useEmailAgentSession, useEmailNavigation, useSyncEmailState } from "../lib/emailShared.tsx";
 import { bumpEmailListRefresh } from "../lib/emailStore.ts";
+import { useEmailLayoutNavigation } from "../lib/useEmailLayoutNavigation.ts";
 
 /** When the provider key is an email address, use it to exclude self from reply-all. */
 function currentEmailFromProvider(provider: string): string | undefined {
   return provider.includes("@") ? provider : undefined;
 }
 
-/**
- * One message per panel. Opened without params it is the placeholder the
- * navigator fills when the user picks a message.
- */
-export default function EmailMessageView({ params, panel }: ViewProps<EmailMessageParams>) {
+/** One message per tab (`/email/<provider>/<box>/<messageId>`). */
+export default function EmailMessagePane({ params }: ViewProps) {
   const { provider, box, messageId } = params;
-  const { openCompose } = useEmailNavigation();
+  const panel = usePanel();
+  const { openCompose } = useEmailLayoutNavigation();
   const { agentId, ensureAgent } = useEmailAgentSession();
   useSyncEmailState(agentId, provider ?? null, messageId ?? null);
   const { openConfirm, Dialog: ConfirmDialog } = useConfirmDialog();
@@ -42,13 +42,7 @@ export default function EmailMessageView({ params, panel }: ViewProps<EmailMessa
   const message = data?.email ?? null;
 
   // The tab shows the subject once the message arrives.
-  useEffect(() => {
-    if (!messageId) {
-      panel.setTitle("Message");
-      return;
-    }
-    panel.setTitle(message ? message.subject || "(no subject)" : "Message");
-  }, [message, messageId, panel]);
+  usePanelTitle(message ? message.subject || "(no subject)" : "Message");
 
   /**
    * Deletes through the agent's active provider (Gmail and friends move the
@@ -160,17 +154,7 @@ export default function EmailMessageView({ params, panel }: ViewProps<EmailMessa
     };
   }, [applyMailboxAction, box, boxes, capabilities, changingMailbox, handleEditDraft, message?.isStarred]);
 
-  if (!provider || !messageId) {
-    return (
-      <EmptyState
-        icon={Mail}
-        iconBadgeClassName="bg-linear-to-br from-red-500 to-rose-600"
-        title="Select a message"
-        hint="Pick a message from the list to read it here, or compose a new email."
-        variant="page"
-      />
-    );
-  }
+  if (!provider || !messageId) return null;
 
   const startCompose = (mode: Exclude<ComposeMode, "compose">, loaded: Parameters<typeof draftFromMessage>[0]) => {
     const currentEmail = currentEmailFromProvider(provider);
@@ -187,14 +171,7 @@ export default function EmailMessageView({ params, panel }: ViewProps<EmailMessa
           title={
             <div className="flex items-center gap-2 min-w-0 flex-wrap">
               <span className="flex-1 min-w-0 text-xs text-muted truncate">{box ? `${provider} · ${box}` : provider}</span>
-              <button
-                type="button"
-                onClick={() => panel.close()}
-                className="p-1 rounded-md text-muted hover:text-primary hover:bg-hover transition-colors focus-ring cursor-pointer shrink-0"
-                aria-label="Close email"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <IconButton icon={X} label="Close email" variant="ghost" onClick={() => panel.close()} className="shrink-0" />
             </div>
           }
         />

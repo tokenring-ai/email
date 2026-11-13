@@ -2,7 +2,7 @@ import InlineDropdown, { InlineDropdownItem } from "@tokenring-ai/one-frontend/c
 import { ChevronDown, Globe, Loader2, WifiOff } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { EMAIL_PROVIDER_CONFIG_HREF } from "../../../lib/emailShared.tsx";
+import { EMAIL_PROVIDER_CONFIG_HREF } from "../../../lib/emailCommon.tsx";
 
 export default function ProviderSelector({
   provider,

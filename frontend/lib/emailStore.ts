@@ -143,4 +143,30 @@ export function clearCompose(): void {
 export function resetEmailStore(): void {
   update(INITIAL);
   updateCompose(null);
+  rememberEmailProvider(null);
+}
+
+// ─── Browsed provider ──────────────────────────────────────────────────────────
+
+let browsedProvider: string | null = null;
+const providerListeners = new Set<() => void>();
+
+/** The provider the Email app last showed, so the navigator keeps it while another tab (a chat) holds the URL. */
+export function rememberEmailProvider(provider: string | null): void {
+  if (provider === browsedProvider) return;
+  browsedProvider = provider;
+  for (const listener of providerListeners) listener();
+}
+
+export function useRememberedEmailProvider(): string | null {
+  return useSyncExternalStore(
+    listener => {
+      providerListeners.add(listener);
+      return () => {
+        providerListeners.delete(listener);
+      };
+    },
+    () => browsedProvider,
+    () => browsedProvider,
+  );
 }

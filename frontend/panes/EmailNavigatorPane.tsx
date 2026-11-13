@@ -1,28 +1,30 @@
+import { useAttachedAgentChat } from "@tokenring-ai/one-frontend/apps/chat/useAttachedAgentChat.ts";
 import AgentSessionList from "@tokenring-ai/one-frontend/components/AgentSessionList.tsx";
 import EmptyState from "@tokenring-ai/one-frontend/components/ui/EmptyState.tsx";
 import LoadingState from "@tokenring-ai/one-frontend/components/ui/LoadingState.tsx";
 import ViewHeader from "@tokenring-ai/one-frontend/components/ui/ViewHeader.tsx";
 import ViewShell from "@tokenring-ai/one-frontend/components/ui/ViewShell.tsx";
-import { usePanel } from "@tokenring-ai/one-frontend/dock/PanelContext.tsx";
-import { useAgentChatPanel } from "@tokenring-ai/one-frontend/dock/useAgentChatPanel.ts";
 import { useConfirmDialog } from "@tokenring-ai/one-frontend/hooks/useConfirmDialog.tsx";
+import { useLayoutApi } from "@tokenring-ai/one-frontend/layout/context.ts";
 import { useEmailBoxes, useEmailConfiguration } from "@tokenring-ai/one-frontend/rpc.ts";
+import { Button, TextField } from "@tokenring-ai/one-frontend/ui";
 import { Mail, PenSquare, Search, Settings2, WifiOff } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import MailboxDropdown from "../features/email/components/MailboxDropdown.tsx";
 import MessageListPane from "../features/email/components/MessageListPane.tsx";
 import ProviderSelector from "../features/email/components/ProviderSelector.tsx";
 import WatchStatus from "../features/email/components/WatchStatus.tsx";
+import { EMAIL_MESSAGE_VIEW_ID, EMAIL_START_VIEW_ID } from "../ids.ts";
+import { EMAIL_PROVIDER_CONFIG_HREF, useEmailAgentSession, useSyncEmailState } from "../lib/emailCommon.tsx";
 import { useEmailWatchStatus } from "../lib/emailQueries.ts";
-import { EMAIL_PROVIDER_CONFIG_HREF, useEmailAgentSession, useEmailNavigation, useSyncEmailState } from "../lib/emailShared.tsx";
-import { resetEmailBrowser, setEmailBrowserState, useEmailBrowserStore } from "../lib/emailStore.ts";
-import { EMAIL_DASHBOARD_ID } from "../manifest.ts";
+import { rememberEmailProvider, resetEmailBrowser, setEmailBrowserState, useEmailBrowserStore, useRememberedEmailProvider } from "../lib/emailStore.ts";
+import { useEmailLayoutNavigation } from "../lib/useEmailLayoutNavigation.ts";
 
-/** Agent sessions the Email dashboard can attach to; keeps the chat panel docked beside the messages. */
+/** Agent sessions the Email app can attach to; keeps the chat tab beside the messages. */
 function EmailAgentSessions() {
   const { agentId, agents, isLoading, selectAgent, createAgent, terminateAgent, TerminateDialog } = useEmailAgentSession();
-  useAgentChatPanel({ agentId });
+  useAttachedAgentChat({ agentId });
   const watch = useEmailWatchStatus(agentId);
 
   return (
@@ -44,22 +46,27 @@ function EmailAgentSessions() {
 }
 
 /**
- * The Email dashboard's navigator: provider and mailbox pickers, search, the
- * message list and the agent sessions. Rows open one panel per message; on
- * another dashboard they navigate to the Email dashboard instead.
+ * The Email navigator: provider and mailbox pickers, search, the message list
+ * and the agent sessions. Rows open one tab per message.
  */
-export default function EmailMessagesView() {
-  const panel = usePanel();
-  const inEmailDashboard = panel.dashboardId === EMAIL_DASHBOARD_ID;
-  const { provider: routeProvider, box: routeBox, messageId: routeMessageId } = useParams<{ provider?: string; box?: string; messageId?: string }>();
-  const { openProvider, openMessage, openCompose } = useEmailNavigation();
+export default function EmailNavigatorPane() {
+  const { route } = useLayoutApi();
+  const routeProvider = route?.params.provider;
+  const messageRoute = route?.viewId === EMAIL_MESSAGE_VIEW_ID ? route.params : null;
+  const routeBox = messageRoute?.box;
+  const routeMessageId = messageRoute?.messageId;
+  const { openProvider, openMessage, openCompose } = useEmailLayoutNavigation();
   const { openConfirm, Dialog: ConfirmDialog } = useConfirmDialog();
   const navigate = useNavigate();
 
   const configuration = useEmailConfiguration();
   const providers = useMemo(() => configuration.data?.providers ?? [], [configuration.data]);
-  // The URL is the source of truth on the Email dashboard; elsewhere the first provider is browsed.
-  const provider = inEmailDashboard ? (routeProvider ?? null) : (providers[0] ?? null);
+  // The URL is the source of truth; while another tab (a chat) holds it, the last provider stays.
+  const remembered = useRememberedEmailProvider();
+  const provider = routeProvider ?? remembered;
+  useEffect(() => {
+    if (routeProvider) rememberEmailProvider(routeProvider);
+  }, [routeProvider]);
 
   const { box: storedBox, searchQuery, messageFilter, listRefreshKey } = useEmailBrowserStore();
   const [searchInput, setSearchInput] = useState("");
@@ -70,14 +77,15 @@ export default function EmailMessagesView() {
   const boxes = useMemo(() => boxesQuery.data?.boxes ?? [], [boxesQuery.data]);
 
   // /email (or an unknown provider) lands on the first configured provider.
+  const atStart = route?.viewId === EMAIL_START_VIEW_ID;
   useEffect(() => {
-    if (!inEmailDashboard || configuration.isLoading) return;
+    if (configuration.isLoading || !route) return;
     if (providers.length === 0) {
       if (routeProvider) openProvider(null, { replace: true });
       return;
     }
-    if (!routeProvider || !providers.includes(routeProvider)) openProvider(providers[0]!, { replace: true });
-  }, [configuration.isLoading, inEmailDashboard, openProvider, providers, routeProvider]);
+    if (atStart && (!routeProvider || !providers.includes(routeProvider))) openProvider(providers[0]!, { replace: true });
+  }, [atStart, configuration.isLoading, openProvider, providers, route, routeProvider]);
 
   // A deep link into a mailbox selects it in the navigator — when the route
   // changes only. Comparing against the stored box on every render would undo
@@ -95,7 +103,7 @@ export default function EmailMessagesView() {
     return boxes.find(candidate => candidate.id === "inbox")?.id ?? boxes[0]?.id ?? "inbox";
   }, [boxes, storedBox]);
 
-  const selectedId = inEmailDashboard ? (routeMessageId ?? null) : null;
+  const selectedId = routeMessageId ?? null;
 
   let body: React.ReactNode;
   if (!configuration.isLoading && providers.length === 0) {
@@ -166,16 +174,15 @@ export default function EmailMessagesView() {
                 <span className="flex-1 text-xs font-bold text-muted uppercase tracking-widest px-1 truncate">Email</span>
               )}
               <div className="flex-1" />
-              <button
-                type="button"
+              <Button
+                icon={PenSquare}
                 onClick={() => provider && void openCompose(provider, undefined, openConfirm)}
                 disabled={!provider}
                 title={provider ? "Write a new email" : "Configure an email provider (Gmail via the Google plugin) to compose"}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-medium rounded-lg shadow-button-primary focus-ring cursor-pointer transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="shrink-0"
               >
-                <PenSquare className="w-3.5 h-3.5" />
                 Compose
-              </button>
+              </Button>
             </div>
           }
         />
@@ -189,28 +196,25 @@ export default function EmailMessagesView() {
           }}
           className="flex-1 flex items-center gap-1.5 min-w-0"
         >
-          <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" aria-hidden="true" />
-            <input
-              type="text"
-              aria-label="Search emails"
-              placeholder="Search emails…"
-              value={searchInput}
-              onChange={event => setSearchInput(event.target.value)}
-              className="w-full bg-input border border-primary rounded-lg py-1.5 pl-8 pr-3 text-xs text-primary placeholder-muted focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 transition-all"
-            />
-          </div>
+          <TextField
+            aria-label="Search emails"
+            placeholder="Search emails…"
+            value={searchInput}
+            onChange={setSearchInput}
+            leading={<Search className="w-3.5 h-3.5" aria-hidden="true" />}
+            className="flex-1 min-w-0"
+          />
           {searchQuery && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={() => {
                 setSearchInput("");
                 setEmailBrowserState({ searchQuery: null });
               }}
-              className="px-2 text-xs text-muted hover:text-primary transition-colors cursor-pointer shrink-0"
+              className="shrink-0"
             >
               Clear
-            </button>
+            </Button>
           )}
         </form>
         <ProviderSelector
@@ -227,11 +231,9 @@ export default function EmailMessagesView() {
 
       <div className="flex-1 min-h-0">{body}</div>
 
-      {inEmailDashboard && (
-        <div className="shrink-0 border-t border-primary">
-          <EmailAgentSessions />
-        </div>
-      )}
+      <div className="shrink-0 border-t border-primary">
+        <EmailAgentSessions />
+      </div>
       <ConfirmDialog />
     </ViewShell>
   );

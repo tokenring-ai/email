@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, it, mock } from "bun:test";
 import { act, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { EmailMessage } from "@tokenring-ai/email";
-import { getPanelBadge } from "@tokenring-ai/one-frontend/dock/panelBadges.ts";
-import type { DashboardDefinition, ViewDefinition, ViewParams } from "@tokenring-ai/one-frontend/dock/types.ts";
-import { createFakeDashboardApi, createFakePanelHandle, type FakeDashboardApi, renderView } from "@tokenring-ai/one-frontend/test/dock.tsx";
+import { defineView } from "@tokenring-ai/one-frontend/layout/define.ts";
+import type { ViewParams } from "@tokenring-ai/one-frontend/layout/types.ts";
+import { MessageSquare } from "lucide-react";
 import type React from "react";
+import { SWRConfig } from "swr";
 
 // focus-trap refuses to activate in jsdom.
 const PassThroughFocusTrap = ({ children }: { children: React.ReactNode }) => children;
@@ -84,6 +85,7 @@ const state = {
   agents: [] as (typeof emailAgent)[],
   message: inboxMessage as EmailMessage | null,
   searchNextPageToken: undefined as string | undefined,
+  lastSearchQuery: undefined as string | undefined,
   capabilities: { markUnread: true, archive: true, star: true, move: true, resumeDrafts: true } as Record<string, boolean> | undefined,
   watch: undefined as Record<string, unknown> | undefined,
 };
@@ -108,16 +110,19 @@ void mock.module("@tokenring-ai/one-frontend/rpc.ts", () => ({
     error: undefined,
     mutate: mock(async () => undefined),
   }),
-  useEmailSearch: (provider: string | undefined, query: string | undefined) => ({
-    data:
-      provider && query
-        ? { messages: [searchHit], count: 1, message: "", ...(state.searchNextPageToken ? { nextPageToken: state.searchNextPageToken } : {}) }
-        : undefined,
-    isLoading: false,
-    isValidating: false,
-    error: undefined,
-    mutate: mock(async () => undefined),
-  }),
+  useEmailSearch: (provider: string | undefined, query: string | undefined) => {
+    state.lastSearchQuery = query;
+    return {
+      data:
+        provider && query
+          ? { messages: [searchHit], count: 1, message: "", ...(state.searchNextPageToken ? { nextPageToken: state.searchNextPageToken } : {}) }
+          : undefined,
+      isLoading: false,
+      isValidating: false,
+      error: undefined,
+      mutate: mock(async () => undefined),
+    };
+  },
   useEmailMessage: (provider: string | undefined, messageId: string | undefined) => ({
     data: provider && messageId && state.message ? { email: state.message, message: "" } : undefined,
     isLoading: false,
@@ -149,27 +154,53 @@ void mock.module("@tokenring-ai/one-frontend/rpc.ts", () => ({
   useAgentTypes: () => ({ data: [{ type: "email", displayName: "Email Agent", description: "", enabledTools: [] }], isLoading: false }),
 }));
 
-const { default: contribution } = await import("../app.tsx");
+const { default: layout } = await import("../layout.ts");
+const { default: viewsModule } = await import("../views.tsx");
+const { CORE_KINDS } = await import("@tokenring-ai/one-frontend/apps/kinds.ts");
+const { createLayoutRegistry } = await import("@tokenring-ai/one-frontend/layout/registry.ts");
+const { renderLayoutApp } = await import("@tokenring-ai/one-frontend/test/layout.tsx");
 const { resetEmailStore, getComposeState, setEmailBrowserState, startCompose, useEmailBrowserStore } = await import("../lib/emailStore.ts");
 
-const ROUTES = ["/email/:provider?", "/email/:provider/compose", "/email/:provider/:box/:messageId", "/configuration/:plugin?"];
-const viewById = (id: string) => contribution.views.find(view => view.id === id) as ViewDefinition<any>;
-const getView = (id: string) => contribution.views.find(view => view.id === id);
-const dashboard: DashboardDefinition = contribution.dashboards[0]!;
-
-function fakeApi(): FakeDashboardApi {
-  return createFakeDashboardApi({ dashboardId: "email", getView });
+function ChatStub() {
+  return <p>chat stub</p>;
 }
 
-function renderEmailView(viewId: string, params: ViewParams = {}, path = "/email/gmail", api = fakeApi()) {
-  const panel = createFakePanelHandle({ viewId, dashboardId: api.dashboardId, panelId: `${viewId}:${JSON.stringify(params)}`, params });
-  return renderView(viewById(viewId), params, { api, panel, path, routes: ROUTES });
+const chatView = defineView({
+  id: "chat",
+  kind: "agent",
+  title: params => params.agentId ?? "Chat",
+  icon: MessageSquare,
+  route: "agent/:agentId",
+  instanceKey: params => params.agentId ?? "",
+  component: ChatStub,
+});
+
+const registry = createLayoutRegistry({ apps: layout.apps, views: [...viewsModule.views, chatView], kinds: [...CORE_KINDS, ...layout.kinds] });
+
+// A fresh SWR cache per render, so mocked hooks and SWR-backed ones never share state across tests.
+function FreshSwr({ children }: { children: React.ReactNode }) {
+  return <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>;
 }
 
-const pathname = () => screen.getByTestId("pathname").textContent;
+let current: ReturnType<typeof renderLayoutApp> | null = null;
+
+/** The whole Email app at a URL. */
+function renderEmailApp(url = "/email/gmail") {
+  current = renderLayoutApp({ registry, url, wrapper: FreshSwr });
+  return current;
+}
+
+/** The app at the URL of one of its tab views. */
+function renderPane(viewId: string, params: ViewParams = {}) {
+  return renderEmailApp(registry.routes.urlFor("email", viewId, params) ?? "/email");
+}
+
+/** A tab of the view is open (panel keys are `<viewId>:<instanceKey>`). */
+const isOpen = (viewId: string) => document.querySelector(`[data-panel^="${viewId}:"]`) !== null;
+const pathname = () => current?.location().pathname;
 const dirtyDraft = (body: string) => ({ mode: "compose" as const, to: "", cc: "", bcc: "", subject: "", body });
 
-describe("Email dashboard views", () => {
+describe("Email app", () => {
   beforeEach(() => {
     localStorage.clear();
     resetEmailStore();
@@ -205,6 +236,7 @@ describe("Email dashboard views", () => {
     state.agents = [];
     state.message = inboxMessage;
     state.searchNextPageToken = undefined;
+    state.lastSearchQuery = undefined;
     state.capabilities = { markUnread: true, archive: true, star: true, move: true, resumeDrafts: true };
     state.watch = undefined;
   });
@@ -212,35 +244,39 @@ describe("Email dashboard views", () => {
   describe("navigator", () => {
     it("lists the inbox and opens a message in the main area", async () => {
       const user = userEvent.setup();
-      const { api } = renderEmailView("email-messages");
+      renderEmailApp();
 
       expect(await screen.findByText("Launch plan")).toBeInTheDocument();
       await user.click(screen.getByText("Launch plan"));
 
-      expect(api.opened).toEqual([expect.objectContaining({ viewId: "email-message", params: { provider: "gmail", box: "inbox", messageId: "m1" } })]);
       expect(pathname()).toBe("/email/gmail/inbox/m1");
+      // The "Select a message" placeholder has done its job.
+      expect(isOpen("email-start")).toBe(false);
+      expect(isOpen("email-message")).toBe(true);
     });
 
     it("does not open a message when its checkbox is clicked", async () => {
       const user = userEvent.setup();
-      const { api } = renderEmailView("email-messages");
+      renderEmailApp();
 
       const checkbox = await screen.findByRole("checkbox", { name: /Launch plan/ });
       await user.click(checkbox);
 
       expect(checkbox).toBeChecked();
-      expect(api.opened).toEqual([]);
+      expect(isOpen("email-message")).toBe(false);
       expect(pathname()).toBe("/email/gmail");
 
       await user.click(screen.getByText("Launch plan"));
-      expect(api.opened).toEqual([expect.objectContaining({ viewId: "email-message", params: { provider: "gmail", box: "inbox", messageId: "m1" } })]);
       expect(pathname()).toBe("/email/gmail/inbox/m1");
+      // The "Select a message" placeholder has done its job.
+      expect(isOpen("email-start")).toBe(false);
+      expect(isOpen("email-message")).toBe(true);
     });
 
     it("selects every message on the page and archives them in one call", async () => {
       const user = userEvent.setup();
       state.messages = [inboxMessage, secondMessage];
-      renderEmailView("email-messages");
+      renderEmailApp();
 
       await user.click(await screen.findByRole("checkbox", { name: "Select all on this page" }));
 
@@ -263,7 +299,7 @@ describe("Email dashboard views", () => {
         failed: [{ id: "m2", error: "quota" }],
         message: "",
       }));
-      renderEmailView("email-messages");
+      renderEmailApp();
 
       await user.click(await screen.findByRole("checkbox", { name: "Select all on this page" }));
       await user.click(screen.getByRole("button", { name: "Archive" }));
@@ -274,10 +310,23 @@ describe("Email dashboard views", () => {
       expect(modifyMessages).toHaveBeenCalledTimes(1);
     });
 
+    it("asks Gmail for read mail instead of hiding unread rows on the loaded page", async () => {
+      const user = userEvent.setup();
+      state.messages = [inboxMessage, { ...secondMessage, isRead: true }];
+      renderEmailApp();
+
+      expect(await screen.findByText("Bob")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Read" }));
+
+      await waitFor(() => expect(state.lastSearchQuery).toBe("is:read"));
+      // The read row from the previous page is not reused; the list is the search result.
+      expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+    });
+
     it("clears the selection when the filter changes", async () => {
       const user = userEvent.setup();
       state.messages = [inboxMessage, secondMessage];
-      renderEmailView("email-messages");
+      renderEmailApp();
 
       await user.click(await screen.findByRole("checkbox", { name: "Select all on this page" }));
       expect(screen.getByRole("button", { name: "Archive" })).toBeInTheDocument();
@@ -289,25 +338,21 @@ describe("Email dashboard views", () => {
       expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
     });
 
-    it("fills the placeholder message panel instead of opening a second one", async () => {
-      const user = userEvent.setup();
-      const api = fakeApi();
-      api.panels.push({ panelId: "email-message:new", viewId: "email-message", params: {}, title: "Message" });
-      renderEmailView("email-messages", {}, "/email/gmail", api);
-
-      await user.click(await screen.findByText("Launch plan"));
-      expect(api.opened).toHaveLength(0);
-      expect(api.panels[0]!.params).toEqual({ provider: "gmail", box: "inbox", messageId: "m1" });
+    it("starts on the placeholder tab", async () => {
+      renderEmailApp("/email/gmail");
+      expect(await screen.findByText("Launch plan")).toBeInTheDocument();
+      expect(isOpen("email-start")).toBe(true);
+      expect(screen.getByText("Pick a message from the list to read it here, or compose a new email.")).toBeInTheDocument();
     });
 
     it("redirects /email to the first configured provider", async () => {
-      renderEmailView("email-messages", {}, "/email");
+      renderEmailApp("/email");
       await waitFor(() => expect(pathname()).toBe("/email/gmail"));
     });
 
     it("searches messages and clears the search again", async () => {
       const user = userEvent.setup();
-      renderEmailView("email-messages");
+      renderEmailApp();
 
       await user.type(await screen.findByLabelText("Search emails"), "budget{Enter}");
       expect(await screen.findByText("Budget review")).toBeInTheDocument();
@@ -318,17 +363,17 @@ describe("Email dashboard views", () => {
 
     it("starts a draft and opens the compose panel", async () => {
       const user = userEvent.setup();
-      const { api } = renderEmailView("email-messages");
+      renderEmailApp();
 
       await user.click(await screen.findByRole("button", { name: /Compose/ }));
-      expect(api.opened).toEqual([expect.objectContaining({ viewId: "email-compose" })]);
+      expect(isOpen("email-compose")).toBe(true);
       expect(pathname()).toBe("/email/gmail/compose");
       expect(getComposeState()).toMatchObject({ provider: "gmail", draft: { mode: "compose" } });
     });
 
     it("keeps a mailbox picked while a message from another box is open", async () => {
       const store = renderHook(() => useEmailBrowserStore());
-      renderEmailView("email-messages", {}, "/email/gmail/inbox/m1");
+      renderEmailApp("/email/gmail/inbox/m1");
       await waitFor(() => expect(store.result.current.box).toBe("inbox"));
 
       act(() => setEmailBrowserState({ box: "sent", searchQuery: null }));
@@ -340,7 +385,7 @@ describe("Email dashboard views", () => {
     it("resumes an unsent draft instead of replacing it", async () => {
       const user = userEvent.setup();
       startCompose("gmail", dirtyDraft("Half a thought"));
-      renderEmailView("email-messages");
+      renderEmailApp();
 
       await user.click(await screen.findByRole("button", { name: /Compose/ }));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -351,7 +396,7 @@ describe("Email dashboard views", () => {
     it("tells the user when no provider is configured and how to add Gmail", async () => {
       const user = userEvent.setup();
       state.providers = [];
-      renderEmailView("email-messages", {}, "/email");
+      renderEmailApp("/email");
       expect(await screen.findByText("No email providers configured")).toBeInTheDocument();
       expect(screen.getAllByText(/Gmail/).length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: /Compose/ })).toHaveAttribute("title", expect.stringContaining("Configure an email provider"));
@@ -364,7 +409,7 @@ describe("Email dashboard views", () => {
       const user = userEvent.setup();
       state.searchNextPageToken = "search-2";
       searchMessages.mockImplementationOnce(async () => ({ messages: [{ ...searchHit, id: "m3", subject: "Budget follow-up" }], count: 1, message: "" }));
-      renderEmailView("email-messages");
+      renderEmailApp();
 
       await user.type(await screen.findByLabelText("Search emails"), "budget{Enter}");
       expect(await screen.findByText("1+ results")).toBeInTheDocument();
@@ -375,16 +420,14 @@ describe("Email dashboard views", () => {
       expect(getMessages).not.toHaveBeenCalled();
     });
 
-    it("lists the dashboard's agents only on the Email dashboard", async () => {
+    it("lists the app's agents and opens the attached agent's chat beside the messages", async () => {
       state.agents = [emailAgent];
-      const { unmount } = renderEmailView("email-messages");
+      localStorage.setItem("agentSession:email", "agent-1");
+      renderEmailApp();
       expect(await screen.findByText("Email agents")).toBeInTheDocument();
-      unmount();
-
-      const homeApi = createFakeDashboardApi({ dashboardId: "home", getView });
-      renderEmailView("email-messages", {}, "/email/gmail", homeApi);
-      await waitFor(() => expect(screen.queryByText("Email agents")).not.toBeInTheDocument());
+      expect(await screen.findByText("chat stub")).toBeInTheDocument();
     });
+
     it("shows the attached agent's inbox watch status, read-only", async () => {
       state.agents = [emailAgent];
       state.watch = {
@@ -398,7 +441,7 @@ describe("Email dashboard views", () => {
         processedCount: 5,
       };
       localStorage.setItem("agentSession:email", "agent-1");
-      renderEmailView("email-messages", {}, "/email/gmail", createFakeDashboardApi({ dashboardId: "email", getView }));
+      renderEmailApp("/email/gmail");
 
       const row = await screen.findByTestId("email-watch-status");
       expect(within(row).getByText("Watching")).toBeInTheDocument();
@@ -419,7 +462,7 @@ describe("Email dashboard views", () => {
         processedCount: 0,
       };
       localStorage.setItem("agentSession:email", "agent-1");
-      renderEmailView("email-messages");
+      renderEmailApp();
 
       expect(within(await screen.findByTestId("email-watch-status")).getByText("Not configured")).toBeInTheDocument();
     });
@@ -427,24 +470,18 @@ describe("Email dashboard views", () => {
 
   describe("message", () => {
     it("renders the message and titles its tab", async () => {
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
-      expect(await screen.findByText("Launch plan")).toBeInTheDocument();
-      expect(screen.getByText("Here is the plan")).toBeInTheDocument();
-      await waitFor(() => expect(panel.title).toBe("Launch plan"));
-    });
-
-    it("is a placeholder until a message is chosen", async () => {
-      renderEmailView("email-message", {}, "/email/gmail");
-      expect(await screen.findByText("Select a message")).toBeInTheDocument();
+      expect((await screen.findAllByText("Here is the plan")).length).toBeGreaterThan(0);
+      await waitFor(() => expect(document.title).toBe("Launch plan · Email"));
     });
 
     it("prefills a reply and opens the compose panel", async () => {
       const user = userEvent.setup();
-      const { api } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: /^Reply$/ }));
-      expect(api.opened).toEqual([expect.objectContaining({ viewId: "email-compose" })]);
+      expect(isOpen("email-compose")).toBe(true);
       expect(pathname()).toBe("/email/gmail/compose");
       expect(getComposeState()?.draft).toMatchObject({ mode: "reply", to: "Alice <alice@example.com>", subject: "Re: Launch plan" });
     });
@@ -452,13 +489,13 @@ describe("Email dashboard views", () => {
     it("asks before a reply replaces an unsent draft", async () => {
       const user = userEvent.setup();
       startCompose("gmail", dirtyDraft("Half a thought"));
-      const { api } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: /^Reply$/ }));
       await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep draft" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(getComposeState()?.draft).toMatchObject({ mode: "compose", body: "Half a thought" });
-      expect(api.opened).toHaveLength(0);
+      expect(isOpen("email-compose")).toBe(false);
 
       await user.click(screen.getByRole("button", { name: /^Reply$/ }));
       await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard draft" }));
@@ -469,7 +506,7 @@ describe("Email dashboard views", () => {
     it("hands the message to the attached agent", async () => {
       const user = userEvent.setup();
       state.agents = [emailAgent];
-      renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: /Reply with AI/ }));
       await waitFor(() => expect(sendInput).toHaveBeenCalled());
@@ -481,14 +518,14 @@ describe("Email dashboard views", () => {
       state.agents = [emailAgent];
       const store = renderHook(() => useEmailBrowserStore());
       const before = store.result.current.listRefreshKey;
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: /^Delete$/ }));
       await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
 
       await waitFor(() => expect(deleteMessage).toHaveBeenCalledWith({ agentId: "agent-1", id: "m1" }));
       expect(toastMocks.success).toHaveBeenCalledWith("Deleted message: m1", { duration: 2500 });
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-message")).toBe(false));
       // The navigator list revalidates so the deleted row disappears.
       await waitFor(() => expect(store.result.current.listRefreshKey).toBe(before + 1));
     });
@@ -496,14 +533,14 @@ describe("Email dashboard views", () => {
     it("keeps the message when the confirmation is cancelled", async () => {
       const user = userEvent.setup();
       state.agents = [emailAgent];
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: /^Delete$/ }));
       await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Keep" }));
 
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(deleteMessage).not.toHaveBeenCalled();
-      expect(panel.closed).toBe(false);
+      expect(isOpen("email-message")).toBe(true);
     });
 
     it("toasts and keeps the panel open when the delete fails", async () => {
@@ -512,7 +549,7 @@ describe("Email dashboard views", () => {
       deleteMessage.mockImplementationOnce(async () => {
         throw new Error("Gmail said no");
       });
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: /^Delete$/ }));
       await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }));
@@ -520,14 +557,14 @@ describe("Email dashboard views", () => {
       await waitFor(() => expect(toastMocks.error).toHaveBeenCalled());
       expect(toastMocks.error.mock.calls[0]![0]).toContain("Gmail said no");
       expect(toastMocks.success).not.toHaveBeenCalled();
-      expect(panel.closed).toBe(false);
+      expect(isOpen("email-message")).toBe(true);
     });
 
     it("marks an unread message as read and refreshes the list", async () => {
       const user = userEvent.setup();
       const store = renderHook(() => useEmailBrowserStore());
       const before = store.result.current.listRefreshKey;
-      renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: "Mark as read" }));
       await waitFor(() => expect(markMessageAsRead).toHaveBeenCalledWith({ provider: "gmail", id: "m1" }));
@@ -537,8 +574,8 @@ describe("Email dashboard views", () => {
 
     it("offers no mark-as-read for a message already read", async () => {
       state.message = { ...inboxMessage, isRead: true };
-      renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
-      expect(await screen.findByText("Launch plan")).toBeInTheDocument();
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
+      expect((await screen.findAllByText("Launch plan")).length).toBeGreaterThan(0);
       expect(screen.queryByRole("button", { name: "Mark as read" })).not.toBeInTheDocument();
     });
 
@@ -546,25 +583,25 @@ describe("Email dashboard views", () => {
       const user = userEvent.setup();
       const store = renderHook(() => useEmailBrowserStore());
       const before = store.result.current.listRefreshKey;
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: "Archive" }));
       await waitFor(() => expect(modifyMessages).toHaveBeenCalledWith({ provider: "gmail", ids: ["m1"], action: { type: "archive" } }));
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-message")).toBe(false));
       expect(store.result.current.listRefreshKey).toBe(before + 1);
     });
 
     it("stars and marks unread in place", async () => {
       const user = userEvent.setup();
       state.message = { ...inboxMessage, isRead: true, isStarred: false };
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: "Star" }));
       await waitFor(() => expect(modifyMessages).toHaveBeenCalledWith({ provider: "gmail", ids: ["m1"], action: { type: "star", starred: true } }));
       await user.click(screen.getByRole("button", { name: "Mark unread" }));
       await waitFor(() => expect(modifyMessages).toHaveBeenLastCalledWith({ provider: "gmail", ids: ["m1"], action: { type: "markUnread" } }));
       expect(mutateMessage).toHaveBeenCalled();
-      expect(panel.closed).toBe(false);
+      expect(isOpen("email-message")).toBe(true);
     });
 
     it("moves the message to another mailbox", async () => {
@@ -574,7 +611,7 @@ describe("Email dashboard views", () => {
         { id: "sent", name: "Sent" },
         { id: "spam", name: "Spam" },
       ];
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: /Move to/ }));
       // Sent is a view, and the message is already in the inbox.
@@ -583,15 +620,15 @@ describe("Email dashboard views", () => {
       await user.click(await screen.findByRole("menuitem", { name: /Spam/ }));
 
       await waitFor(() => expect(modifyMessages).toHaveBeenCalledWith({ provider: "gmail", ids: ["m1"], action: { type: "move", box: "spam" } }));
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-message")).toBe(false));
     });
 
     it("hides mailbox actions the provider does not support", async () => {
       state.capabilities = { markUnread: false, archive: false, star: false, move: false, resumeDrafts: false };
       state.message = { ...inboxMessage, isRead: true };
-      renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
-      expect(await screen.findByText("Launch plan")).toBeInTheDocument();
+      expect((await screen.findAllByText("Launch plan")).length).toBeGreaterThan(0);
       for (const name of ["Archive", "Star", "Mark unread", /Move to/]) {
         expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
       }
@@ -600,16 +637,16 @@ describe("Email dashboard views", () => {
     it("toasts a failed mailbox change and keeps the panel", async () => {
       const user = userEvent.setup();
       modifyMessages.mockImplementationOnce(async args => ({ succeeded: [], failed: [{ id: args.ids[0]!, error: "quota" }], message: "" }));
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: "Archive" }));
       await waitFor(() => expect(toastMocks.error).toHaveBeenCalledWith("quota", { duration: 5000 }));
-      expect(panel.closed).toBe(false);
+      expect(isOpen("email-message")).toBe(true);
     });
 
     it("resumes a message from the Drafts box as its saved draft", async () => {
       const user = userEvent.setup();
-      renderEmailView("email-message", { provider: "gmail", box: "drafts", messageId: "m1" }, "/email/gmail/drafts/m1");
+      renderPane("email-message", { provider: "gmail", box: "drafts", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: "Edit draft" }));
       await waitFor(() => expect(getDraftForMessage).toHaveBeenCalledWith({ provider: "gmail", messageId: "m1" }));
@@ -618,43 +655,43 @@ describe("Email dashboard views", () => {
     });
 
     it("offers Edit draft only in the Drafts box", async () => {
-      renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
-      expect(await screen.findByText("Launch plan")).toBeInTheDocument();
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
+      expect((await screen.findAllByText("Launch plan")).length).toBeGreaterThan(0);
       expect(screen.queryByRole("button", { name: "Edit draft" })).not.toBeInTheDocument();
     });
 
     it("closes its own panel", async () => {
       const user = userEvent.setup();
-      const { panel } = renderEmailView("email-message", { provider: "gmail", box: "inbox", messageId: "m1" }, "/email/gmail/inbox/m1");
+      renderPane("email-message", { provider: "gmail", box: "inbox", messageId: "m1" });
 
       await user.click(await screen.findByRole("button", { name: "Close email" }));
-      expect(panel.closed).toBe(true);
+      expect(isOpen("email-message")).toBe(false);
     });
   });
 
   describe("compose", () => {
     it("starts an empty draft from a deep link and keeps it when the panel is closed", async () => {
       const user = userEvent.setup();
-      const first = renderEmailView("email-compose", {}, "/email/gmail/compose");
+      const first = renderPane("email-compose", { provider: "gmail" });
 
       await user.type(await first.findByLabelText("Message body"), "Half a thought");
-      await waitFor(() => expect(getPanelBadge(first.panel.panelId)?.title).toBe("Unsent draft"));
+      await waitFor(() => expect(screen.getAllByRole("img", { name: "Unsent draft" }).length).toBeGreaterThan(0));
       first.unmount();
 
-      renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
       expect(await screen.findByLabelText("Message body")).toHaveValue("Half a thought");
     });
 
     it("composes through the provider in the URL, replacing an untouched draft for another one", async () => {
       startCompose("outlook");
-      renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
       await waitFor(() => expect(getComposeState()?.provider).toBe("gmail"));
     });
 
     it("asks before a deep link replaces an unsent draft for another provider", async () => {
       const user = userEvent.setup();
       startCompose("outlook", dirtyDraft("Keep me"));
-      renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep draft" }));
       // Keeping it points the URL back at the draft's provider.
@@ -665,7 +702,7 @@ describe("Email dashboard views", () => {
     it("starts a draft for the URL's provider once the user discards the other one", async () => {
       const user = userEvent.setup();
       startCompose("outlook", dirtyDraft("Throw away"));
-      renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard draft" }));
       await waitFor(() => expect(getComposeState()).toMatchObject({ provider: "gmail", draft: { body: "" } }));
@@ -676,21 +713,21 @@ describe("Email dashboard views", () => {
       const user = userEvent.setup();
       state.agents = [emailAgent];
       startCompose("gmail", { mode: "compose", to: "bob@example.com", cc: "", bcc: "", subject: "Hi", body: "Hello there" });
-      const { panel } = renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(await screen.findByRole("button", { name: /Send/ }));
 
       await waitFor(() => expect(createDraft).toHaveBeenCalled());
       expect(createDraft.mock.calls[0]![0]).toMatchObject({ agentId: "agent-1", subject: "Hi", to: [{ email: "bob@example.com" }] });
       await waitFor(() => expect(sendCurrentDraft).toHaveBeenCalledWith({ agentId: "agent-1" }));
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-compose")).toBe(false));
       expect(getComposeState()).toBeNull();
     });
 
     it("saves the draft to the provider, then updates it in place and closes without asking", async () => {
       const user = userEvent.setup();
       startCompose("gmail", { mode: "compose", to: "bob@example.com", cc: "", bcc: "", subject: "Hi", body: "Hello there" });
-      const { panel } = renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(await screen.findByRole("button", { name: /Save draft/ }));
       await waitFor(() => expect(saveDraft).toHaveBeenCalledTimes(1));
@@ -706,46 +743,46 @@ describe("Email dashboard views", () => {
 
       // Saved and unchanged: closing loses nothing, so it does not ask.
       await user.click(screen.getByRole("button", { name: "Close compose" }));
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-compose")).toBe(false));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
     it("sends a saved draft in place instead of creating another", async () => {
       const user = userEvent.setup();
       startCompose("gmail", { mode: "compose", to: "bob@example.com", cc: "", bcc: "", subject: "Hi", body: "Hello there", serverDraftId: "d9" });
-      const { panel } = renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(await screen.findByRole("button", { name: /Send/ }));
       await waitFor(() => expect(sendDraft).toHaveBeenCalledWith({ provider: "gmail", id: "d9" }));
       expect(saveDraft.mock.calls[0]![0]).toMatchObject({ id: "d9" });
       expect(createDraft).not.toHaveBeenCalled();
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-compose")).toBe(false));
     });
 
     it("asks before Cancel discards an unsent draft", async () => {
       const user = userEvent.setup();
       startCompose("gmail", dirtyDraft("Half a thought"));
-      const { panel } = renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(await screen.findByRole("button", { name: "Cancel" }));
       await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Keep draft" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-      expect(panel.closed).toBe(false);
+      expect(isOpen("email-compose")).toBe(true);
       expect(getComposeState()?.draft.body).toBe("Half a thought");
 
       await user.click(screen.getByRole("button", { name: "Cancel" }));
       await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Discard draft" }));
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-compose")).toBe(false));
       expect(getComposeState()).toBeNull();
     });
 
     it("cancels an empty draft without asking", async () => {
       const user = userEvent.setup();
       startCompose("gmail");
-      const { panel } = renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(await screen.findByRole("button", { name: "Cancel" }));
-      await waitFor(() => expect(panel.closed).toBe(true));
+      await waitFor(() => expect(isOpen("email-compose")).toBe(false));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
@@ -753,59 +790,34 @@ describe("Email dashboard views", () => {
       const user = userEvent.setup();
       state.agents = [emailAgent];
       startCompose("gmail", { mode: "compose", to: "not-an-address", cc: "", bcc: "", subject: "Hi", body: "Hello" });
-      renderEmailView("email-compose", {}, "/email/gmail/compose");
+      renderPane("email-compose", { provider: "gmail" });
 
       await user.click(await screen.findByRole("button", { name: /Send/ }));
       await waitFor(() => expect(toastMocks.error).toHaveBeenCalledWith("Enter at least one valid recipient in To", { duration: 3500 }));
       expect(createDraft).not.toHaveBeenCalled();
     });
   });
+});
 
-  describe("dashboard definition", () => {
-    it("opens the panel named by the route in the main area", () => {
-      const api = fakeApi();
-      api.panels.push({ panelId: "email-messages", viewId: "email-messages", params: {}, title: "Messages" });
-      const match = (path: string, params: Record<string, string | undefined>) => ({ pathname: path, params, searchParams: new URLSearchParams() });
+describe("Email layout", () => {
+  const resolve = (path: string) => registry.routes.resolve(path);
 
-      dashboard.onNavigate?.(match("/email", {}), api);
-      dashboard.onNavigate?.(match("/email/gmail", { provider: "gmail" }), api);
-      dashboard.onNavigate?.(match("/email/gmail/inbox/m1", { provider: "gmail", box: "inbox", messageId: "m1" }), api);
-      dashboard.onNavigate?.(match("/email/gmail/compose", { provider: "gmail" }), api);
+  it("keeps every old URL working", () => {
+    expect(resolve("/email")).toMatchObject({ app: "email", viewId: "email-start", params: {} });
+    expect(resolve("/email/gmail")).toMatchObject({ viewId: "email-start", params: { provider: "gmail" } });
+    expect(resolve("/email/gmail/compose")).toMatchObject({ viewId: "email-compose", params: { provider: "gmail" } });
+    expect(resolve("/email/gmail/inbox/m1")).toMatchObject({ viewId: "email-message", params: { provider: "gmail", box: "inbox", messageId: "m1" } });
+  });
 
-      expect(api.opened.map(open => [open.viewId, open.params])).toEqual([
-        ["email-message", { provider: "gmail", box: "inbox", messageId: "m1" }],
-        ["email-compose", {}],
-      ]);
-      expect(api.opened[0]!.options).toMatchObject({ position: "right", referencePanelId: "email-messages" });
-    });
+  it("builds URLs with encoded providers, boxes and message ids", () => {
+    const url = registry.routes.urlFor("email", "email-message", { provider: "a@b.com", box: "All Mail", messageId: "m/1" });
+    expect(url).toBe("/email/a%40b.com/All%20Mail/m%2F1");
+    expect(resolve(url!)).toMatchObject({ params: { provider: "a@b.com", box: "All Mail", messageId: "m/1" } });
+  });
 
-    it("is idempotent: a repeated route focuses the open panel", () => {
-      const api = fakeApi();
-      const match = { pathname: "/email/gmail/inbox/m1", params: { provider: "gmail", box: "inbox", messageId: "m1" }, searchParams: new URLSearchParams() };
-      dashboard.onNavigate?.(match, api);
-      dashboard.onNavigate?.(match, api);
-      expect(api.panels.filter(open => open.viewId === "email-message")).toHaveLength(1);
-    });
-
-    it("maps the active panel back to a URL", () => {
-      const match = { pathname: "/email/gmail", params: { provider: "gmail" }, searchParams: new URLSearchParams() };
-      const path = (viewId: string, params: ViewParams = {}) => dashboard.pathForActivePanel?.({ panelId: viewId, viewId, params }, match);
-
-      expect(path("email-message", { provider: "gmail", box: "inbox", messageId: "m1" })).toBe("/email/gmail/inbox/m1");
-      // The placeholder keeps the provider the navigator is browsing.
-      expect(path("email-message")).toBe("/email/gmail");
-      startCompose("gmail");
-      expect(path("email-compose")).toBe("/email/gmail/compose");
-      expect(path("email-messages")).toBeNull();
-    });
-
-    it("encodes providers, boxes and message ids in deep links", () => {
-      const match = { pathname: "/email", params: {}, searchParams: new URLSearchParams() };
-      const path = dashboard.pathForActivePanel?.(
-        { panelId: "p", viewId: "email-message", params: { provider: "a@b.com", box: "All Mail", messageId: "m/1" } },
-        match,
-      );
-      expect(path).toBe("/email/a%40b.com/All%20Mail/m%2F1");
-    });
+  it("opens one tab per message, however it was listed", () => {
+    const a = resolve("/email/gmail/inbox/m1");
+    const b = resolve("/email/gmail/sent/m1");
+    expect(a?.key).toBe(b?.key);
   });
 });

@@ -59,18 +59,22 @@ export default function MessageListPane({
   refreshKey?: number;
 }) {
   const unreadOnly = messageFilter === "unread";
+  // The list API can ask only for unread mail. Read mail is a real search (`is:read`),
+  // not a client-side slice of whatever page was already loaded.
+  const readConstraint = messageFilter === "read" ? "is:read" : null;
+  const serverQuery = searchQuery && readConstraint ? `${searchQuery} ${readConstraint}` : (searchQuery ?? readConstraint);
   // Both hooks always run (Rules of Hooks); inactive one gets a null SWR key and does not fetch.
-  const listing = useEmailMessages(searchQuery ? undefined : (provider ?? undefined), {
+  const listing = useEmailMessages(serverQuery ? undefined : (provider ?? undefined), {
     box,
     limit: PAGE_SIZE,
     unreadOnly,
   });
-  const search = useEmailSearch(provider ?? undefined, searchQuery !== null ? searchQuery : undefined, {
+  const search = useEmailSearch(provider ?? undefined, serverQuery ?? undefined, {
     box,
     limit: PAGE_SIZE,
     unreadOnly,
   });
-  const result = searchQuery ? search : listing;
+  const result = serverQuery ? search : listing;
   // Keep latest result for refresh so mutate targets the active query after mode switches.
   const resultRef = useRefSync(result);
   const capabilities = useEmailCapabilities(provider);
@@ -88,12 +92,12 @@ export default function MessageListPane({
 
   const fetchNextPage = useCallback(
     async (pageToken: string) => {
-      const page = searchQuery
-        ? await emailRPCClient.searchMessages({ provider: provider!, query: searchQuery, box, limit: PAGE_SIZE, unreadOnly, pageToken })
+      const page = serverQuery
+        ? await emailRPCClient.searchMessages({ provider: provider!, query: serverQuery, box, limit: PAGE_SIZE, unreadOnly, pageToken })
         : await emailRPCClient.getMessages({ provider: provider!, box, limit: PAGE_SIZE, unreadOnly, pageToken });
       return { items: page.messages as EmailMessage[], nextPageToken: page.nextPageToken };
     },
-    [box, provider, searchQuery, unreadOnly],
+    [box, provider, serverQuery, unreadOnly],
   );
 
   const {
@@ -117,7 +121,7 @@ export default function MessageListPane({
     () =>
       messages.filter(msg => {
         if (messageFilter === "read") return msg.isRead;
-        // unread is applied server-side when possible; still filter client-side for safety
+        // Unread is requested from the provider; this still drops a row the provider marked read.
         if (messageFilter === "unread") return !msg.isRead;
         return true;
       }),

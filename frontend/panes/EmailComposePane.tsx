@@ -1,13 +1,14 @@
+import { usePanelBadge, usePanelTitle, useRouteParamsFor } from "@tokenring-ai/one-frontend/apps/panelHooks.ts";
 import EmptyState from "@tokenring-ai/one-frontend/components/ui/EmptyState.tsx";
-import { setPanelBadge } from "@tokenring-ai/one-frontend/dock/panelBadges.ts";
-import type { ViewProps } from "@tokenring-ai/one-frontend/dock/types.ts";
 import { useConfirmDialog } from "@tokenring-ai/one-frontend/hooks/useConfirmDialog.tsx";
+import { usePanel } from "@tokenring-ai/one-frontend/layout/hooks.ts";
 import { PenSquare } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import ComposeForm from "../features/email/components/ComposeForm.tsx";
 import type { ComposeMode } from "../features/email/types.ts";
-import { discardDraftConfirmOptions, replaceDraftConfirmOptions, useEmailAgentSession } from "../lib/emailShared.tsx";
+import { EMAIL_COMPOSE_VIEW_ID } from "../ids.ts";
+import { discardDraftConfirmOptions, replaceDraftConfirmOptions, useEmailAgentSession } from "../lib/emailCommon.tsx";
 import {
   bumpEmailListRefresh,
   clearCompose,
@@ -18,7 +19,7 @@ import {
   updateComposeDraft,
   useComposeState,
 } from "../lib/emailStore.ts";
-import { composePath, isComposePath } from "../lib/paths.ts";
+import { composePath } from "../lib/paths.ts";
 
 const TAB_TITLES: Record<ComposeMode, string> = {
   compose: "New message",
@@ -28,13 +29,14 @@ const TAB_TITLES: Record<ComposeMode, string> = {
 };
 
 /**
- * The dashboard's single compose panel. The draft lives in a module store, so
+ * The app's single compose tab. The draft lives in a module store, so
  * closing the tab (or replying from another panel) never loses what is typed.
  */
-export default function EmailComposeView({ panel }: ViewProps) {
+export default function EmailComposePane() {
+  const panel = usePanel();
   const compose = useComposeState();
-  const { provider: routeProvider } = useParams<{ provider?: string }>();
-  const { pathname } = useLocation();
+  // The tab keeps the params it first opened with; the URL says which provider to compose through now.
+  const routeProvider = useRouteParamsFor(EMAIL_COMPOSE_VIEW_ID)?.provider;
   const navigate = useNavigate();
   const { ensureAgent } = useEmailAgentSession();
   const { openConfirm, Dialog: ConfirmDialog } = useConfirmDialog();
@@ -44,7 +46,7 @@ export default function EmailComposeView({ panel }: ViewProps) {
   // must not come back while the panel closes. A draft for another provider is
   // replaced — after asking, when it has unsent content; keeping it points the
   // URL back at the draft's provider instead.
-  const composeRouteProvider = routeProvider && isComposePath(pathname) ? routeProvider : null;
+  const composeRouteProvider = routeProvider ?? null;
   const handledRoute = useRef<string | null>(null);
   const mounted = useRef(true);
   useEffect(
@@ -79,19 +81,12 @@ export default function EmailComposeView({ panel }: ViewProps) {
     });
   }, [composeRouteProvider, navigate, openConfirm]);
 
-  const mode = compose?.draft.mode;
-  useEffect(() => {
-    panel.setTitle(mode ? TAB_TITLES[mode] : "New message");
-  }, [mode, panel]);
+  usePanelTitle(compose ? TAB_TITLES[compose.draft.mode] : "New message");
 
   // An unfinished draft marks the tab so a closed panel is still visibly pending.
   // A draft saved, unchanged, to the provider's Drafts box is not at risk.
   const dirty = compose ? hasUnsavedChanges(compose) : false;
-  const panelId = panel.panelId;
-  useEffect(() => {
-    setPanelBadge(panelId, dirty ? { tone: "warning", title: "Unsent draft" } : null);
-    return () => setPanelBadge(panelId, null);
-  }, [dirty, panelId]);
+  usePanelBadge(dirty ? { tone: "warning", label: "Unsent draft" } : null);
 
   if (!compose) {
     return (
