@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type Agent from "@tokenring-ai/agent/Agent";
 import type { InputMessage } from "@tokenring-ai/agent/AgentEvents";
+import createTestingAgent from "@tokenring-ai/agent/test/createTestingAgent.test";
+import createTestingApp from "@tokenring-ai/app/test/createTestingApp.test";
 import type { EmailDraft, EmailMessage, EmailProvider } from "./EmailProvider.ts";
 import EmailService from "./EmailService.ts";
+import { EmailConfigSchema } from "./schema.ts";
 import { EmailState } from "./state/EmailState.ts";
 
 const sampleMessage: EmailMessage = {
@@ -82,6 +85,26 @@ function createAgentHarness(initial?: { draft?: EmailDraft; message?: EmailMessa
 }
 
 describe("EmailService.checkForNewEmails", () => {
+  test("acts on new mail while the agent is idle, as the watch loop does", async () => {
+    const app = createTestingApp();
+    const service = new EmailService(EmailConfigSchema.parse({ agentDefaults: { provider: "mock" } }));
+    service.registerEmailProvider("mock", mockProvider());
+    app.addService(EmailService, service);
+    // A real agent with no input running: the watch loop polls between turns.
+    const agent = createTestingAgent(app);
+    const sent: string[] = [];
+    agent.handleInput = ({ message }) => {
+      sent.push(message);
+      return "req-1";
+    };
+
+    await service.checkForNewEmails(
+      { markAsRead: false, unreadOnly: false, maxEmailsToConsider: 50, actions: [{ pattern: "invoice", command: "/email message info" }] },
+      agent,
+    );
+    expect(sent).toHaveLength(1);
+  });
+
   test("selects the matched message then queues the watch command", async () => {
     const service = new EmailService();
     service.registerEmailProvider("mock", mockProvider());
@@ -221,5 +244,96 @@ describe("getWatchStatus", () => {
       actionCount: 1,
       processedCount: 1,
     });
+  });
+});
+
+describe("EmailService watch loop", () => {
+  test("waits between checks when a check fails, instead of spinning and freezing the server", async () => {
+    // No provider registered, so every check throws before it awaits anything.
+    const service = new EmailService(EmailConfigSchema.parse({ pollInterval: 0.02 }));
+    const { agent, state } = createAgentHarness();
+    state.watch = { unreadOnly: true, markAsRead: false, maxEmailsToConsider: 10, actions: [] };
+    const errors: string[] = [];
+    const controller = new AbortController();
+    let loop: Promise<void> = Promise.resolve();
+    Object.assign(agent, {
+      errorMessage: (message: string) => errors.push(message),
+      runBackgroundTask: (task: (signal: AbortSignal) => Promise<void>) => {
+        loop = task(controller.signal);
+      },
+    });
+
+    service.watchEmails(agent);
+    // With the old loop this timer never fired: the retry chain never yielded to it.
+    await new Promise(resolve => setTimeout(resolve, 120));
+    controller.abort();
+    await loop;
+
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors.length).toBeLessThan(15);
+    expect(state.isWatching).toBe(false);
+  });
+});
+
+describe("EmailService.checkForNewEmails robustness", () => {
+  test("skips an invalid pattern, still runs the valid ones and records the message", async () => {
+    const service = new EmailService();
+    service.registerEmailProvider("mock", mockProvider());
+    const { agent, state, inputs } = createAgentHarness();
+    const errors: string[] = [];
+    Object.assign(agent, { errorMessage: (message: string) => errors.push(message) });
+
+    await service.checkForNewEmails(
+      {
+        markAsRead: false,
+        unreadOnly: false,
+        maxEmailsToConsider: 50,
+        actions: [
+          { pattern: "(urgent", command: "/never" },
+          { pattern: "invoice", command: "/email message info" },
+        ],
+      },
+      agent,
+    );
+
+    expect(errors[0]).toContain("not a valid regular expression");
+    expect(inputs.map(input => input.message)).toEqual(["/email message info"]);
+    expect(state.processedEmails.has(sampleMessage.id)).toBe(true);
+  });
+
+  test("leaves mail not reached before a shutdown unprocessed, to handle next time", async () => {
+    const second = { ...sampleMessage, id: "msg-2" };
+    const service = new EmailService();
+    service.registerEmailProvider("mock", mockProvider({ getMessages: async () => ({ messages: [sampleMessage, second] }) }));
+    const { agent, state } = createAgentHarness();
+    const controller = new AbortController();
+    Object.assign(agent, {
+      getAbortSignal: () => controller.signal,
+      handleInput: () => {
+        controller.abort();
+        return "req-1";
+      },
+    });
+
+    await service.checkForNewEmails({ markAsRead: false, unreadOnly: false, maxEmailsToConsider: 50, actions: [{ pattern: "invoice", command: "/x" }] }, agent);
+
+    expect([...state.processedEmails]).toEqual([sampleMessage.id]);
+  });
+});
+
+describe("EmailService when the selected provider's account was disconnected", () => {
+  test("says the provider is no longer available instead of failing obscurely, and recovers once another is selected", async () => {
+    const service = new EmailService(EmailConfigSchema.parse({}));
+    service.registerEmailProvider("mock", mockProvider());
+    service.registerEmailProvider("other", mockProvider());
+    const { agent } = createAgentHarness();
+
+    expect(service.requireActiveEmailProvider(agent)).toBeDefined();
+    service.unregisterEmailProvider("mock");
+
+    expect(() => service.requireActiveEmailProvider(agent)).toThrow(/"mock" is no longer available.*Select another/);
+    expect(() => service.getBoxes(agent)).toThrow("no longer available");
+    service.setActiveProvider("other", agent);
+    expect(service.requireActiveEmailProvider(agent)).toBeDefined();
   });
 });

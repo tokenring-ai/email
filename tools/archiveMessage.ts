@@ -7,7 +7,7 @@ import { messageIdInput, requireMessageActionApproval, resolveTargetMessage } fr
 const name = "email_archiveMessage";
 const displayName = "Email/archiveMessage";
 const description =
-  "Archive an email message: it leaves the inbox but stays searchable. Requires the user's approval. Acts on the selected message unless an ID is given. Only providers that support archiving (such as Gmail) can do this.";
+  "Archive an email message: it leaves the inbox but stays searchable. Subject to the user's approval settings, which may run it without asking. Acts on the selected message unless an ID is given. Only providers that support archiving (such as Gmail) can do this.";
 
 /** Changes where existing mail lives; nothing is lost. */
 const ARCHIVE_SAFETY_LEVEL = 5;

@@ -10,8 +10,8 @@ const displayName = "Email/updateMessageFlags";
 const description =
   "Mark an email message read or unread, and/or star or unstar it. Acts on the selected message unless an ID is given. Marking unread and starring need provider support (Gmail has both).";
 
-/** Flags are easily reversed. */
-const FLAGS_SAFETY_LEVEL = 3;
+/** Read/starred flags on your own mail; easily reversed (approval standard: recoverable change). */
+const FLAGS_SAFETY_LEVEL = 4;
 
 const inputSchema = z.object({
   id: messageIdInput,

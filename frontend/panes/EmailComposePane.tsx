@@ -116,13 +116,15 @@ export default function EmailComposePane() {
           });
         }}
         unsavedEdits={dirty}
-        onSaved={serverDraftId => {
-          markComposeSaved(serverDraftId);
+        onSaved={(serverDraftId, content) => {
+          markComposeSaved(serverDraftId, content);
           bumpEmailListRefresh();
         }}
-        onSent={() => {
-          clearCompose();
+        onSent={sentSession => {
           bumpEmailListRefresh();
+          // A draft started while this one was sending (a reply, a new message) is not this one: keep it.
+          if (getComposeState()?.session !== sentSession) return;
+          clearCompose();
           panel.close();
         }}
       />

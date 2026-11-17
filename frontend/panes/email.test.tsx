@@ -59,7 +59,7 @@ const deleteMessage = mock(async (_args: { agentId: string; id: string }) => ({ 
 const getMessages = mock(async (_args: Record<string, unknown>) => ({ messages: [] as EmailMessage[], count: 0, message: "" }));
 const searchMessages = mock(async (_args: Record<string, unknown>) => ({ messages: [] as EmailMessage[], count: 0, message: "" }));
 const markMessageAsRead = mock(async (_args: { provider: string; id: string }) => ({ message: "Marked as read" }));
-const createAgent = mock(async (_args: { agentType: string; headless: boolean }) => ({ id: "agent-new", displayName: "Email Agent", description: "" }));
+const createAgent = mock(async (_args: { agentType: string }) => ({ id: "agent-new", displayName: "Email Agent", description: "" }));
 const sendInput = mock(async (_args: { agentId: string; input: unknown }) => ({ status: "success" as const, requestId: "req-1" }));
 const modifyMessages = mock(async (args: { ids: string[]; action: { type: string } }) => ({
   succeeded: args.ids,
@@ -361,6 +361,18 @@ describe("Email app", () => {
       expect(await screen.findByText("Launch plan")).toBeInTheDocument();
     });
 
+    it("empties the search box when the search is cleared by switching mailbox", async () => {
+      const user = userEvent.setup();
+      renderEmailApp();
+
+      const box = await screen.findByLabelText("Search emails");
+      await user.type(box, "budget{Enter}");
+      expect(await screen.findByText("Budget review")).toBeInTheDocument();
+
+      act(() => setEmailBrowserState({ box: "sent", searchQuery: null }));
+      await waitFor(() => expect(screen.getByLabelText("Search emails")).toHaveValue(""));
+    });
+
     it("starts a draft and opens the compose panel", async () => {
       const user = userEvent.setup();
       renderEmailApp();
@@ -393,16 +405,16 @@ describe("Email app", () => {
       expect(getComposeState()?.draft.body).toBe("Half a thought");
     });
 
-    it("tells the user when no provider is configured and how to add Gmail", async () => {
+    it("tells the user no account is connected and offers the guided Google setup", async () => {
       const user = userEvent.setup();
       state.providers = [];
       renderEmailApp("/email");
-      expect(await screen.findByText("No email providers configured")).toBeInTheDocument();
-      expect(screen.getAllByText(/Gmail/).length).toBeGreaterThan(0);
+      expect(await screen.findByText("No account connected")).toBeInTheDocument();
+      expect(screen.getAllByText(/Google/).length).toBeGreaterThan(0);
       expect(screen.getByRole("button", { name: /Compose/ })).toHaveAttribute("title", expect.stringContaining("Configure an email provider"));
 
-      await user.click(screen.getByRole("button", { name: "Open Google configuration" }));
-      expect(pathname()).toBe("/configuration/%40tokenring-ai%2Fgoogle");
+      await user.click(screen.getByRole("button", { name: "Connect Google" }));
+      expect(pathname()).toBe("/configuration/connect-google");
     });
 
     it("pages search results with the search's page token", async () => {
@@ -745,6 +757,26 @@ describe("Email app", () => {
       await user.click(screen.getByRole("button", { name: "Close compose" }));
       await waitFor(() => expect(isOpen("email-compose")).toBe(false));
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("keeps text typed while a save is in flight marked as unsaved", async () => {
+      const user = userEvent.setup();
+      let release!: () => void;
+      saveDraft.mockImplementationOnce(async () => {
+        await new Promise<void>(resolve => (release = resolve));
+        return { draft: savedDraft, message: "Draft saved" };
+      });
+      startCompose("gmail", { mode: "compose", to: "bob@example.com", cc: "", bcc: "", subject: "Hi", body: "Hello there" });
+      renderPane("email-compose", { provider: "gmail" });
+
+      await user.click(await screen.findByRole("button", { name: /Save draft/ }));
+      await waitFor(() => expect(saveDraft).toHaveBeenCalledTimes(1));
+      await user.type(screen.getByLabelText("Message body"), " and more");
+      release();
+
+      await waitFor(() => expect(getComposeState()?.draft.serverDraftId).toBe("d9"));
+      expect(getComposeState()?.saved?.body).toBe("Hello there");
+      expect(await screen.findByText("Unsaved changes")).toBeInTheDocument();
     });
 
     it("sends a saved draft in place instead of creating another", async () => {

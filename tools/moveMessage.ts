@@ -7,7 +7,7 @@ import { messageIdInput, requireMessageActionApproval, resolveTargetMessage } fr
 const name = "email_moveMessage";
 const displayName = "Email/moveMessage";
 const description =
-  "Move an email message to another mailbox, such as inbox, spam or trash (Gmail also accepts a user label name). Requires the user's approval. Acts on the selected message unless an ID is given.";
+  "Move an email message to another mailbox, such as inbox, spam or trash (Gmail also accepts a user label name). Subject to the user's approval settings, which may run it without asking. Acts on the selected message unless an ID is given.";
 
 const MOVE_SAFETY_LEVEL = 5;
 /** Moving to the trash is a (recoverable) delete. */

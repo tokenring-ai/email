@@ -114,11 +114,15 @@ export function startCompose(provider: string, draft: ComposeDraft = emptyCompos
   updateCompose({ provider, draft, session: (compose?.session ?? 0) + 1, saved: draft.serverDraftId ? draft : null });
 }
 
-/** Records that the current content was saved as the provider draft `serverDraftId`. */
-export function markComposeSaved(serverDraftId: string): void {
+/**
+ * Records that `content` — what the save sent, which may be older than the draft now if typing
+ * continued while it was in flight — was saved as the provider draft `serverDraftId`. Newer text
+ * stays unsaved, so closing still asks about it.
+ */
+export function markComposeSaved(serverDraftId: string, content?: ComposeDraft): void {
   if (!compose) return;
   const draft = { ...compose.draft, serverDraftId };
-  updateCompose({ ...compose, draft, saved: draft });
+  updateCompose({ ...compose, draft, saved: { ...(content ?? compose.draft), serverDraftId } });
 }
 
 /**

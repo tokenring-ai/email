@@ -5,8 +5,9 @@ import emailRPC from "./email.ts";
 
 const hit: EmailMessage = { id: "m1", subject: "Budget", from: { email: "a@example.com" }, to: [], isRead: false };
 
-function appWith(provider: Partial<EmailProvider>): TokenRingApp {
-  return { requireService: () => ({ requireEmailProvider: () => provider }) } as unknown as TokenRingApp;
+function appWith(provider: Partial<EmailProvider>, agents: unknown[] = []): TokenRingApp {
+  // One object stands in for both EmailService and AgentManager.
+  return { requireService: () => ({ requireEmailProvider: () => provider, getAgents: () => agents }) } as unknown as TokenRingApp;
 }
 
 describe("searchMessages", () => {
@@ -103,6 +104,13 @@ describe("drafts", () => {
     const updateDraft = mock(async (_data: { id?: string }) => draft);
     await emailRPC.methods.saveDraft.execute({ provider: "gmail", id: "d1", subject: "Hi", to: [] }, appWith({ updateDraft }));
     expect(updateDraft.mock.calls[0]![0]).toMatchObject({ id: "d1", subject: "Hi" });
+  });
+
+  test("saveDraft refreshes the copy of the draft an agent has selected", async () => {
+    const state: { activeProvider: string; currentDraft: unknown } = { activeProvider: "gmail", currentDraft: { ...draft, textBody: "old text" } };
+    const agent = { getState: () => state, mutateState: (_slice: unknown, fn: (s: typeof state) => void) => fn(state) };
+    await emailRPC.methods.saveDraft.execute({ provider: "gmail", id: draft.id, subject: "Hi", to: [] }, appWith({ updateDraft: async () => draft }, [agent]));
+    expect(state.currentDraft).toEqual(draft);
   });
 
   test("getDraftForMessage resolves a Drafts-box message, or null", async () => {

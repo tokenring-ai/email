@@ -1,5 +1,6 @@
 import { useAppAgentSession } from "@tokenring-ai/one-frontend/hooks/useAppAgentSession.tsx";
 import type { ConfirmDialogOptions } from "@tokenring-ai/one-frontend/hooks/useConfirmDialog.tsx";
+import { requireAgentFound } from "@tokenring-ai/one-frontend/lib/requireAgentFound.ts";
 import { toastOnReject } from "@tokenring-ai/one-frontend/lib/toastOnReject.ts";
 import { agentRPCClient, emailRPCClient, useEmailConfiguration } from "@tokenring-ai/one-frontend/rpc.ts";
 import formatError from "@tokenring-ai/utility/error/formatError";
@@ -39,8 +40,8 @@ export function discardDraftConfirmOptions(savedBefore = false): ConfirmDialogOp
   };
 }
 
-/** Where Gmail, the email provider shipped today, is set up: a Google account with Gmail enabled. */
-export const EMAIL_PROVIDER_CONFIG_HREF = `/configuration/${encodeURIComponent("@tokenring-ai/google")}`;
+/** Where Gmail, the email provider shipped today, is set up: the guided "Connect Google" screen. */
+export const EMAIL_PROVIDER_CONFIG_HREF = "/configuration/connect-google";
 
 /**
  * The Email dashboard's agent session. Every view shares one selection: the
@@ -78,7 +79,7 @@ export async function sendToAgent(ensureAgent: () => Promise<string | null>, mes
   const id = await ensureAgent();
   // ensureAgent already toasts on create failure
   if (!id) return;
-  toastOnReject(agentRPCClient.sendInput({ agentId: id, input: { from: "Email App", message } }), {
+  toastOnReject(agentRPCClient.sendInput({ agentId: id, input: { from: "Email App", message } }).then(requireAgentFound), {
     message: err => `Failed to send to agent: ${formatError(err)}`,
   });
 }

@@ -157,6 +157,21 @@ export default createRPCEndpoint(EmailRpcSchema, {
     if (args.id) {
       const now = Date.now();
       const draft = await provider.updateDraft({ ...fields, id: args.id, createdAt: now, updatedAt: now });
+      // An agent holding this draft merges its next edit into its copy and writes the whole draft
+      // back; refresh that copy, or the agent would revert what was just saved here.
+      for (const agent of app.requireService(AgentManager).getAgents()) {
+        let state: EmailState;
+        try {
+          state = agent.getState(EmailState);
+        } catch {
+          continue;
+        }
+        if (state.activeProvider === args.provider && state.currentDraft?.id === draft.id) {
+          agent.mutateState(EmailState, next => {
+            next.currentDraft = draft;
+          });
+        }
+      }
       return { draft, message: "Draft saved" };
     }
     const draft = await provider.createDraft(fields);

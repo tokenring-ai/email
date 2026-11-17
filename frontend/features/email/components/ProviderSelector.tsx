@@ -29,10 +29,10 @@ export default function ProviderSelector({
     return (
       <Link
         to={EMAIL_PROVIDER_CONFIG_HREF}
-        title="Set up Gmail by adding a Google account with Gmail enabled"
+        title="Connect your Google account to use Gmail"
         className="text-xs text-muted hover:text-primary flex items-center gap-1 focus-ring rounded"
       >
-        <WifiOff className="w-3 h-3" /> No providers — set up Gmail
+        <WifiOff className="w-3 h-3" /> No account connected — connect Google
       </Link>
     );
   }

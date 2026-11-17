@@ -70,6 +70,10 @@ export default function EmailNavigatorPane() {
 
   const { box: storedBox, searchQuery, messageFilter, listRefreshKey } = useEmailBrowserStore();
   const [searchInput, setSearchInput] = useState("");
+  // Anything else that clears the search (a provider switch, another pane) clears the box as well.
+  useEffect(() => {
+    if (searchQuery === null) setSearchInput("");
+  }, [searchQuery]);
   const { agentId } = useEmailAgentSession();
   useSyncEmailState(agentId, provider);
 
@@ -119,10 +123,10 @@ export default function EmailNavigatorPane() {
     ) : (
       <EmptyState
         icon={WifiOff}
-        title="No email providers configured"
-        hint="Email reads and sends through a provider. Gmail is available today: add a Google account with Gmail enabled in the Google (plugin/google) configuration, then come back here."
+        title="No account connected"
+        hint="Connect your Google account to read and send email here. A short step-by-step guide walks you through it, and you only do it once."
         variant="page"
-        ctaLabel="Open Google configuration"
+        ctaLabel="Connect Google"
         ctaIcon={Settings2}
         onCta={() => void navigate(EMAIL_PROVIDER_CONFIG_HREF)}
       />
@@ -169,7 +173,15 @@ export default function EmailNavigatorPane() {
           title={
             <div className="flex items-center gap-2 min-w-0 flex-wrap">
               {boxes.length > 0 ? (
-                <MailboxDropdown boxes={boxes} selected={box} onSelect={id => setEmailBrowserState({ box: id, searchQuery: null })} />
+                <MailboxDropdown
+                  boxes={boxes}
+                  selected={box}
+                  onSelect={id => {
+                    // The search is cleared with the mailbox switch, so clear what the box shows too.
+                    setSearchInput("");
+                    setEmailBrowserState({ box: id, searchQuery: null });
+                  }}
+                />
               ) : (
                 <span className="flex-1 text-xs font-bold text-muted uppercase tracking-widest px-1 truncate">Email</span>
               )}

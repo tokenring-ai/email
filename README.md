@@ -802,7 +802,7 @@ email:
       actions:
         invoicePattern:
           pattern: "invoice|receipt|payment"
-          command: "/research find latest invoice from sender"
+          command: "/deep research find latest invoice from sender"
 ```
 
 ### Configuration Schemas
@@ -890,10 +890,10 @@ email:
       actions:
         invoicePattern:
           pattern: "invoice|receipt|payment"
-          command: "/research find latest invoice from sender"
+          command: "/deep research find latest invoice from sender"
         supportPattern:
           pattern: "support|help|issue"
-          command: "/ticket create --priority high"
+          command: "Create a high-priority support ticket for this email"
 ```
 
 ## Integration

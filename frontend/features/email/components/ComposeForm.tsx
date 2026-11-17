@@ -43,8 +43,10 @@ export default function ComposeForm({
   onChange: (patch: Partial<ComposeDraft>) => void;
   onClose: () => void;
   /** The draft was saved to the provider's Drafts box as `serverDraftId`. */
-  onSaved?: (serverDraftId: string) => void;
-  onSent: () => void;
+  /** `content` is what was saved: typing can continue while the save is in flight. */
+  onSaved?: (serverDraftId: string, content: ComposeDraft) => void;
+  /** Called with the compose session the send started in: by then a new draft may have replaced it. */
+  onSent: (sentSession: number) => void;
   /** The form differs from what was last saved to the provider. */
   unsavedEdits?: boolean;
 }) {
@@ -89,12 +91,13 @@ export default function ComposeForm({
 
   /** Saves to the provider's Drafts box, updating the saved draft in place when there is one. */
   const saveToProvider = async () => {
+    const content = draft;
     const saved = await emailRPCClient.saveDraft({
       provider,
       ...(draft.serverDraftId && { id: draft.serverDraftId }),
       ...draftFields(),
     });
-    onSaved?.(saved.draft.id);
+    onSaved?.(saved.draft.id, content);
     return saved.draft;
   };
 
@@ -136,6 +139,7 @@ export default function ComposeForm({
       return;
     }
 
+    const sentSession = session;
     setSending(true);
     try {
       // A draft saved to the provider is updated with the latest edits and sent
@@ -144,7 +148,7 @@ export default function ComposeForm({
         const saved = await saveToProvider();
         const sent = await emailRPCClient.sendDraft({ provider, id: saved.id });
         toastManager.success(sent.message || "Email sent", { duration: 2500 });
-        onSent();
+        onSent(sentSession);
         return;
       }
 
@@ -191,7 +195,7 @@ export default function ComposeForm({
       }
 
       toastManager.success(sent.message || "Email sent", { duration: 2500 });
-      onSent();
+      onSent(sentSession);
     } catch (err) {
       toastManager.error(formatError(err), { duration: 5000 });
     } finally {
@@ -201,143 +205,146 @@ export default function ComposeForm({
 
   return (
     <form ref={formRef} onSubmit={e => void handleSubmit(e)} className="h-full flex flex-col overflow-hidden bg-primary">
-      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-primary bg-secondary">
-        <h2 className="text-sm font-semibold text-primary">{MODE_LABELS[mode]}</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1 rounded-md text-muted hover:text-primary hover:bg-hover transition-colors focus-ring cursor-pointer"
-          aria-label="Close compose"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
-        <KeyValueRow
-          as="label"
-          label="To"
-          labelWidth="w-10"
-          align="center"
-          truncate={false}
-          labelClassName="text-xs text-muted"
-          valueClassName="text-inherit"
-          value={
-            <input
-              ref={toRef}
-              type="text"
-              value={draft.to}
-              onChange={e => onChange({ to: e.target.value })}
-              placeholder="recipient@example.com"
-              className={inputClass}
-              required
-              autoComplete="off"
-            />
-          }
-        />
-
-        {!showCcBcc ? (
-          <button type="button" onClick={() => setShowCcBcc(true)} className="text-xs text-muted hover:text-primary transition-colors cursor-pointer ml-12">
-            Add Cc / Bcc
-          </button>
-        ) : (
-          <>
-            <KeyValueRow
-              as="label"
-              label="Cc"
-              labelWidth="w-10"
-              align="center"
-              truncate={false}
-              labelClassName="text-xs text-muted"
-              valueClassName="text-inherit"
-              value={
-                <input
-                  type="text"
-                  value={draft.cc}
-                  onChange={e => onChange({ cc: e.target.value })}
-                  placeholder="optional"
-                  className={inputClass}
-                  autoComplete="off"
-                />
-              }
-            />
-            <KeyValueRow
-              as="label"
-              label="Bcc"
-              labelWidth="w-10"
-              align="center"
-              truncate={false}
-              labelClassName="text-xs text-muted"
-              valueClassName="text-inherit"
-              value={
-                <input
-                  type="text"
-                  value={draft.bcc}
-                  onChange={e => onChange({ bcc: e.target.value })}
-                  placeholder="optional"
-                  className={inputClass}
-                  autoComplete="off"
-                />
-              }
-            />
-          </>
-        )}
-
-        <KeyValueRow
-          as="label"
-          label="Subject"
-          labelWidth="w-10"
-          align="center"
-          truncate={false}
-          labelClassName="text-xs text-muted"
-          valueClassName="text-inherit"
-          value={
-            <input
-              type="text"
-              value={draft.subject}
-              onChange={e => onChange({ subject: e.target.value })}
-              placeholder="Subject"
-              className={inputClass}
-              autoComplete="off"
-            />
-          }
-        />
-
-        <textarea
-          ref={bodyRef}
-          value={draft.body}
-          onChange={e => onChange({ body: e.target.value })}
-          placeholder="Write your message…"
-          aria-label="Message body"
-          rows={12}
-          className={cn(inputClass, "resize-y min-h-[12rem] font-sans leading-relaxed")}
-        />
-      </div>
-
-      <FormActionBar
-        onCancel={onClose}
-        submitLabel="Send"
-        submitIcon={Send}
-        loading={sending}
-        disabled={saving}
-        separated
-        size="md"
-        status={draft.serverDraftId ? <span className="text-xs text-muted">{unsavedEdits ? "Unsaved changes" : "Saved in Drafts"}</span> : undefined}
-        actions={
-          <Button
+      {/* Locked while sending: anything typed now would not be in the message that goes out. */}
+      <fieldset disabled={sending} className="contents">
+        <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-3 border-b border-primary bg-secondary">
+          <h2 className="text-sm font-semibold text-primary">{MODE_LABELS[mode]}</h2>
+          <button
             type="button"
-            variant="secondary"
-            size="md"
-            icon={Save}
-            busy={saving}
-            busyLabel="Saving…"
-            disabled={sending}
-            onClick={() => void handleSaveDraft()}
+            onClick={onClose}
+            className="p-1 rounded-md text-muted hover:text-primary hover:bg-hover transition-colors focus-ring cursor-pointer"
+            aria-label="Close compose"
           >
-            Save draft
-          </Button>
-        }
-      />
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
+          <KeyValueRow
+            as="label"
+            label="To"
+            labelWidth="w-10"
+            align="center"
+            truncate={false}
+            labelClassName="text-xs text-muted"
+            valueClassName="text-inherit"
+            value={
+              <input
+                ref={toRef}
+                type="text"
+                value={draft.to}
+                onChange={e => onChange({ to: e.target.value })}
+                placeholder="recipient@example.com"
+                className={inputClass}
+                required
+                autoComplete="off"
+              />
+            }
+          />
+
+          {!showCcBcc ? (
+            <button type="button" onClick={() => setShowCcBcc(true)} className="text-xs text-muted hover:text-primary transition-colors cursor-pointer ml-12">
+              Add Cc / Bcc
+            </button>
+          ) : (
+            <>
+              <KeyValueRow
+                as="label"
+                label="Cc"
+                labelWidth="w-10"
+                align="center"
+                truncate={false}
+                labelClassName="text-xs text-muted"
+                valueClassName="text-inherit"
+                value={
+                  <input
+                    type="text"
+                    value={draft.cc}
+                    onChange={e => onChange({ cc: e.target.value })}
+                    placeholder="optional"
+                    className={inputClass}
+                    autoComplete="off"
+                  />
+                }
+              />
+              <KeyValueRow
+                as="label"
+                label="Bcc"
+                labelWidth="w-10"
+                align="center"
+                truncate={false}
+                labelClassName="text-xs text-muted"
+                valueClassName="text-inherit"
+                value={
+                  <input
+                    type="text"
+                    value={draft.bcc}
+                    onChange={e => onChange({ bcc: e.target.value })}
+                    placeholder="optional"
+                    className={inputClass}
+                    autoComplete="off"
+                  />
+                }
+              />
+            </>
+          )}
+
+          <KeyValueRow
+            as="label"
+            label="Subject"
+            labelWidth="w-10"
+            align="center"
+            truncate={false}
+            labelClassName="text-xs text-muted"
+            valueClassName="text-inherit"
+            value={
+              <input
+                type="text"
+                value={draft.subject}
+                onChange={e => onChange({ subject: e.target.value })}
+                placeholder="Subject"
+                className={inputClass}
+                autoComplete="off"
+              />
+            }
+          />
+
+          <textarea
+            ref={bodyRef}
+            value={draft.body}
+            onChange={e => onChange({ body: e.target.value })}
+            placeholder="Write your message…"
+            aria-label="Message body"
+            rows={12}
+            className={cn(inputClass, "resize-y min-h-[12rem] font-sans leading-relaxed")}
+          />
+        </div>
+
+        <FormActionBar
+          onCancel={onClose}
+          submitLabel="Send"
+          submitIcon={Send}
+          loading={sending}
+          disabled={saving}
+          separated
+          size="md"
+          status={draft.serverDraftId ? <span className="text-xs text-muted">{unsavedEdits ? "Unsaved changes" : "Saved in Drafts"}</span> : undefined}
+          actions={
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              icon={Save}
+              busy={saving}
+              busyLabel="Saving…"
+              disabled={sending}
+              onClick={() => void handleSaveDraft()}
+            >
+              Save draft
+            </Button>
+          }
+        />
+      </fieldset>
     </form>
   );
 }

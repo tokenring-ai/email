@@ -26,6 +26,7 @@ export const EMAIL_APP = {
   icon: Mail,
   iconClass: "text-red-500",
   gradient: "from-red-500 to-rose-600",
+  defaultPinned: true,
   views: [EMAIL_MESSAGES_VIEW_ID, EMAIL_START_VIEW_ID, EMAIL_MESSAGE_VIEW_ID, EMAIL_COMPOSE_VIEW_ID, "chat"],
   primaryKind: EMAIL_VIEW_KIND,
   placement: { agent: "right" },

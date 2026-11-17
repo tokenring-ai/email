@@ -119,15 +119,23 @@ export default class EmailService implements TokenRingService {
     if (wasWatching) return;
 
     agent.runBackgroundTask(async signal => {
+      // Read through a call: TypeScript keeps `signal.aborted` narrowed to false inside the loop.
+      const stopped = () => signal.aborted;
       while (!signal.aborted) {
+        const watch = agent.getState(EmailState).watch;
+        if (!watch) break;
         try {
-          const watch = agent.getState(EmailState).watch;
-          if (!watch) break;
-
           await this.checkForNewEmails(watch, agent);
-          await delay(this.options.pollInterval, null, { signal });
         } catch (error: unknown) {
+          if (stopped()) break;
           agent.errorMessage(`Error while checking for new emails: ${error as Error}`);
+        }
+        // Wait between checks after a failure too: retrying at once (no provider, a bad
+        // pattern) spun the loop on microtasks and froze the whole server.
+        try {
+          await delay(this.options.pollInterval, null, { signal });
+        } catch {
+          break;
         }
       }
       agent.mutateState(EmailState, state => {
@@ -144,30 +152,32 @@ export default class EmailService implements TokenRingService {
       unreadOnly,
     });
     const signal = agent.getAbortSignal();
-    const messagesToProcess = agent.mutateState(EmailState, state => {
-      const toProcess: EmailMessage[] = [];
-      for (const message of messages) {
-        if (signal.aborted) break;
+    const processed = agent.getState(EmailState).processedEmails;
+    const messagesToProcess = messages.filter(message => !processed.has(message.id) && (!unreadOnly || !message.isRead));
 
-        if (!state.processedEmails.has(message.id)) {
-          if (!unreadOnly || !message.isRead) {
-            toProcess.push(message);
-            state.processedEmails.add(message.id);
-          }
-        }
+    // Compiled once per check; a pattern that isn't a valid regex is reported and skipped rather than
+    // throwing on every message (and, before, dropping the whole batch as already processed).
+    const compiled: { action: (typeof actions)[number]; pattern: RegExp }[] = [];
+    for (const action of actions) {
+      try {
+        compiled.push({ action, pattern: new RegExp(action.pattern, "is") });
+      } catch (error) {
+        agent.errorMessage(`Email watch pattern ${JSON.stringify(action.pattern)} is not a valid regular expression, so it was skipped: ${error as Error}`);
       }
-      return toProcess;
-    });
+    }
 
     for (const message of messagesToProcess) {
       if (signal.aborted) break;
+      // Marked as each message is handled, so mail not reached before a shutdown is handled next time.
+      agent.mutateState(EmailState, state => {
+        state.processedEmails.add(message.id);
+      });
 
       if (message.textBody || message.htmlBody) {
         const body = emailToRFC822(message);
         let matched = false;
 
-        for (const action of actions) {
-          const pattern = new RegExp(action.pattern, "is");
+        for (const { action, pattern } of compiled) {
           if (pattern.test(body)) {
             matched = true;
             const fromString = combineEmailAddressAndName(message.from);
@@ -212,7 +222,14 @@ export default class EmailService implements TokenRingService {
   requireActiveEmailProvider(agent: Agent): EmailProvider {
     const activeProvider = agent.getState(EmailState).activeProvider;
     if (!activeProvider) throw new ConfigurationError(this.name, "No email provider is currently selected");
-    return this.providers.require(activeProvider);
+    const provider = this.providers.get(activeProvider);
+    if (!provider) {
+      throw new ConfigurationError(
+        this.name,
+        `The selected email provider "${activeProvider}" is no longer available (its account may have been disconnected). Select another one.`,
+      );
+    }
+    return provider;
   }
 
   setActiveProvider(name: string, agent: Agent): void {

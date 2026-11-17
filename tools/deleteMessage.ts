@@ -7,7 +7,7 @@ import { messageIdInput, requireMessageActionApproval, resolveTargetMessage } fr
 const name = "email_deleteMessage";
 const displayName = "Email/deleteMessage";
 const description =
-  "Delete an email message. Providers move it to the trash where they can, so the user can restore it. Requires the user's approval. Acts on the selected message unless an ID is given.";
+  "Delete an email message. Providers move it to the trash where they can, so the user can restore it. Subject to the user's approval settings, which may run it without asking. Acts on the selected message unless an ID is given.";
 
 /** Removes user data, though recoverably from the provider's trash. */
 const DELETE_SAFETY_LEVEL = 6;

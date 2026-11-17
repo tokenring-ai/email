@@ -39,10 +39,17 @@ export async function resolveTargetMessage(toolName: string, id: string | undefi
  */
 export async function requireMessageActionApproval(
   toolName: string,
-  { message, detailedDescription, safetyLevel }: { message: string; detailedDescription: string; safetyLevel: number },
+  {
+    message,
+    detailedDescription,
+    safetyLevel,
+    permission,
+  }: { message: string; detailedDescription: string; safetyLevel: number; permission?: { id: string; summary: string } },
   agent: Agent,
 ): Promise<void> {
-  const approved = await agent.requireService(ChatService).checkToolApproval({ toolName, message, detailedDescription, safetyLevel, default: false }, agent);
+  const approved = await agent
+    .requireService(ChatService)
+    .checkToolApproval({ toolName, message, detailedDescription, safetyLevel, default: false, ...(permission && { permission }) }, agent);
   if (!approved) {
     throw new ToolCallError(toolName, "User did not approve this change to their mailbox.");
   }
